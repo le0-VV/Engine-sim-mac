@@ -19,8 +19,9 @@
 #include <chrono>
 #include <stdlib.h>
 #include <sstream>
+#include <cstdio>
 
-#if ATG_ENGINE_SIM_DISCORD_ENABLED
+#if ATG_ENGINE_SIM_DISCORD_ENABLED && defined(_WIN32)
 #include "../discord/Discord.h"
 #endif
 
@@ -93,7 +94,7 @@ void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI
     dbasic::Path confPath = modulePath.Append("delta.conf");
 
     std::string enginePath = "../dependencies/submodules/delta-studio/engines/basic";
-    m_assetPath = "../assets";
+    m_assetPath = ".";
     if (confPath.Exists()) {
         std::fstream confFile(confPath.ToString(), std::ios::in);
 
@@ -103,6 +104,29 @@ void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI
         m_assetPath = modulePath.Append(m_assetPath).ToString();
 
         confFile.close();
+    }
+    else {
+        dbasic::Path search = modulePath;
+        bool foundRoot = false;
+        for (int i = 0; i < 8; ++i) {
+            const dbasic::Path assetsDir = search.Append("assets");
+            const dbasic::Path engineDir = search.Append("dependencies/submodules/delta-studio/engines/basic");
+            if (assetsDir.Exists() && engineDir.Exists()) {
+                m_assetPath = search.ToString();
+                enginePath = engineDir.ToString();
+                foundRoot = true;
+                break;
+            }
+
+            dbasic::Path parent;
+            search.GetParentPath(&parent);
+            search = parent;
+        }
+
+        if (!foundRoot) {
+            m_assetPath = modulePath.ToString();
+            enginePath = modulePath.Append("../dependencies/submodules/delta-studio/engines/basic").ToString();
+        }
     }
 
     m_engine.GetConsole()->SetDefaultFontDirectory(enginePath + "/fonts/");
@@ -121,7 +145,11 @@ void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI
     settings.WindowWidth = 1920;
     settings.WindowHeight = 1080;
 
+    std::fprintf(stderr, "[engine-sim] CreateGameWindow\n");
+    std::fflush(stderr);
     m_engine.CreateGameWindow(settings);
+    std::fprintf(stderr, "[engine-sim] CreateGameWindow done\n");
+    std::fflush(stderr);
 
     m_engine.GetDevice()->CreateSubRenderTarget(
         &m_mainRenderTarget,
@@ -152,13 +180,50 @@ void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI
 
     m_geometryGenerator.initialize(100000, 200000);
 
+    std::fprintf(stderr, "[engine-sim] initialize() paths: engine=%s assets-root=%s\n",
+        enginePath.c_str(),
+        m_assetPath.c_str());
+    std::fflush(stderr);
+
     initialize();
 }
 
 void EngineSimApplication::initialize() {
     m_shaders.SetClearColor(ysColor::srgbiToLinear(0x34, 0x98, 0xdb));
-    m_assetManager.CompileInterchangeFile((m_assetPath + "/assets").c_str(), 1.0f, true);
-    m_assetManager.LoadSceneFile((m_assetPath + "/assets").c_str(), true);
+    const std::string assetsDir = m_assetPath + "/assets";
+    const std::string assetsBase = assetsDir + "/assets";
+    if (dbasic::Path(assetsDir).Exists()) {
+        std::fprintf(stderr, "[engine-sim] loading assets from %s\n", assetsBase.c_str());
+        std::fflush(stderr);
+        const std::string sceneFile = assetsBase + ".ysce";
+        if (dbasic::Path(sceneFile).Exists()) {
+            ysError loadErr = m_assetManager.LoadSceneFile(assetsBase.c_str(), true);
+            if (loadErr != ysError::None) {
+                std::fprintf(stderr, "[engine-sim] LoadSceneFile failed: %d\n", (int)loadErr);
+                std::fflush(stderr);
+                return;
+            }
+        }
+        else {
+            ysError compileErr = m_assetManager.CompileInterchangeFile(assetsBase.c_str(), 1.0f, true);
+            if (compileErr != ysError::None) {
+                std::fprintf(stderr, "[engine-sim] CompileInterchangeFile failed: %d\n", (int)compileErr);
+                std::fflush(stderr);
+                return;
+            }
+            ysError loadErr = m_assetManager.LoadSceneFile(assetsBase.c_str(), true);
+            if (loadErr != ysError::None) {
+                std::fprintf(stderr, "[engine-sim] LoadSceneFile failed: %d\n", (int)loadErr);
+                std::fflush(stderr);
+                return;
+            }
+        }
+    }
+    else {
+        std::fprintf(stderr, "[engine-sim] assets path not found: %s\n", assetsDir.c_str());
+        std::fflush(stderr);
+        return;
+    }
 
     m_textRenderer.SetEngine(&m_engine);
     m_textRenderer.SetRenderer(m_engine.GetUiRenderer());
@@ -183,7 +248,7 @@ void EngineSimApplication::initialize() {
     m_audioSource->SetPan(0.0f);
     m_audioSource->SetVolume(1.0f);
 
-#ifdef ATG_ENGINE_SIM_DISCORD_ENABLED
+#if ATG_ENGINE_SIM_DISCORD_ENABLED && defined(_WIN32)
     // Create a global instance of discord-rpc
     CDiscord::CreateInstance();
 
@@ -196,7 +261,7 @@ void EngineSimApplication::initialize() {
         : "Broken Engine";
 
     GetDiscordManager()->SetStatus(passMe, engineName, s_buildVersion);
-#endif /* ATG_ENGINE_SIM_DISCORD_ENABLED */
+#endif /* ATG_ENGINE_SIM_DISCORD_ENABLED && _WIN32 */
 }
 
 void EngineSimApplication::process(float frame_dt) {
@@ -422,16 +487,28 @@ void EngineSimApplication::run() {
 }
 
 void EngineSimApplication::destroy() {
+    std::fprintf(stderr, "[engine-sim] destroy begin\n");
+    std::fflush(stderr);
     m_shaderSet.Destroy();
+    std::fprintf(stderr, "[engine-sim] destroy: shader set\n");
+    std::fflush(stderr);
 
     m_engine.GetDevice()->DestroyGPUBuffer(m_geometryVertexBuffer);
     m_engine.GetDevice()->DestroyGPUBuffer(m_geometryIndexBuffer);
+    std::fprintf(stderr, "[engine-sim] destroy: geometry buffers\n");
+    std::fflush(stderr);
 
     m_assetManager.Destroy();
+    std::fprintf(stderr, "[engine-sim] destroy: asset manager\n");
+    std::fflush(stderr);
     m_engine.Destroy();
+    std::fprintf(stderr, "[engine-sim] destroy: engine\n");
+    std::fflush(stderr);
 
     m_simulator->destroy();
     m_audioBuffer.destroy();
+    std::fprintf(stderr, "[engine-sim] destroy end\n");
+    std::fflush(stderr);
 }
 
 void EngineSimApplication::loadEngine(
@@ -490,6 +567,7 @@ void EngineSimApplication::loadEngine(
     for (int i = 0; i < engine->getExhaustSystemCount(); ++i) {
         ImpulseResponse *response = engine->getExhaustSystem(i)->getImpulseResponse();
 
+#if defined(_WIN32)
         ysWindowsAudioWaveFile waveFile;
         waveFile.OpenFile(response->getFilename().c_str());
         waveFile.InitializeInternalBuffer(waveFile.GetSampleCount());
@@ -504,6 +582,10 @@ void EngineSimApplication::loadEngine(
         );
 
         waveFile.DestroyInternalBuffer();
+#else
+        (void)response;
+        (void)i;
+#endif
     }
 
     m_simulator->startAudioRenderingThread();
@@ -623,7 +705,8 @@ void EngineSimApplication::loadScript() {
 #ifdef ATG_ENGINE_SIM_PIRANHA_ENABLED
     es_script::Compiler compiler;
     compiler.initialize();
-    const bool compiled = compiler.compile("../assets/main.mr");
+    const std::string scriptPath = m_assetPath + "/assets/main.mr";
+    const bool compiled = compiler.compile(scriptPath.c_str());
     if (compiled) {
         const es_script::Compiler::Output output = compiler.execute();
         configure(output.applicationSettings);

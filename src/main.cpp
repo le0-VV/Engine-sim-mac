@@ -1,21 +1,21 @@
 #include "../include/engine_sim_application.h"
 
-#include <iostream>
+#include <cstdio>
 
-int WINAPI WinMain(
-    _In_ HINSTANCE hInstance,
-    _In_opt_ HINSTANCE hPrevInstance,
-    _In_ LPSTR lpCmdLine,
-    _In_ int nCmdShow)
-{
-    (void)nCmdShow;
-    (void)lpCmdLine;
-    (void)hPrevInstance;
+int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+
+    std::fprintf(stderr, "[engine-sim] starting\n");
+    std::fflush(stderr);
 
     EngineSimApplication application;
-    application.initialize((void *)&hInstance, ysContextObject::DeviceAPI::DirectX11);
+    application.initialize(nullptr, ysContextObject::DeviceAPI::OpenGL4_0);
     application.run();
     application.destroy();
+
+    std::fprintf(stderr, "[engine-sim] exiting\n");
+    std::fflush(stderr);
 
     return 0;
 }

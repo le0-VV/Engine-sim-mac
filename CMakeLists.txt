@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
+# Allow legacy CMake policy versions for old third-party CMakeLists (googletest).
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 option(DTV "Enable video output" OFF)
 option(PIRANHA_ENABLED "Enable scripting input" ON)
 option(DISCORD_ENABLED "Enable Discord Rich Presence" ON)
+option(BUILD_TESTING "Build tests" OFF)
 
 if (DTV)
     add_compile_definitions(ATG_ENGINE_SIM_VIDEO_CAPTURE)
@@ -27,20 +30,22 @@ set(CMAKE_CXX_STANDARD 17)
 # ========================================================
 # GTEST
 
-include(FetchContent)
-FetchContent_Declare(
-    googletest
-    URL
-    https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
-)
+if (BUILD_TESTING)
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        URL
+        https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
+    )
 
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
 
-set_property(TARGET gmock PROPERTY FOLDER "gtest")
-set_property(TARGET gmock_main PROPERTY FOLDER "gtest")
-set_property(TARGET gtest PROPERTY FOLDER "gtest")
-set_property(TARGET gtest_main PROPERTY FOLDER "gtest")
+    set_property(TARGET gmock PROPERTY FOLDER "gtest")
+    set_property(TARGET gmock_main PROPERTY FOLDER "gtest")
+    set_property(TARGET gtest PROPERTY FOLDER "gtest")
+    set_property(TARGET gtest_main PROPERTY FOLDER "gtest")
+endif ()
 
 # ========================================================
 
@@ -191,7 +196,7 @@ if (PIRANHA_ENABLED)
         piranha)
 endif (PIRANHA_ENABLED)
 
-if (DISCORD_ENABLED)
+if (DISCORD_ENABLED AND WIN32)
     add_library(discord STATIC
         # Source files
         dependencies/discord/Discord.cpp
@@ -201,78 +206,222 @@ if (DISCORD_ENABLED)
         dependencies/discord/discord_register.h
         dependencies/discord/discord_rpc.h
     )
-endif (DISCORD_ENABLED)
+endif (DISCORD_ENABLED AND WIN32)
 
-add_executable(engine-sim-app WIN32
-    # Source files
-    src/main.cpp
-    src/engine_sim_application.cpp
-    src/geometry_generator.cpp
-    src/simulation_object.cpp
-    src/piston_object.cpp
-    src/connecting_rod_object.cpp
-    src/ui_element.cpp
-    src/ui_manager.cpp
-    src/cylinder_pressure_gauge.cpp
-    src/ui_math.cpp
-    src/gauge.cpp
-    src/crankshaft_object.cpp
-    src/cylinder_bank_object.cpp
-    src/cylinder_head_object.cpp
-    src/ui_button.cpp
-    src/ui_utilities.cpp
-    src/combustion_chamber_object.cpp
-    src/oscilloscope.cpp
-    src/shaders.cpp
-    src/engine_view.cpp
-    src/right_gauge_cluster.cpp
-    src/cylinder_temperature_gauge.cpp
-    src/labeled_gauge.cpp
-    src/throttle_display.cpp
-    src/afr_cluster.cpp
-    src/fuel_cluster.cpp
-    src/oscilloscope_cluster.cpp
-    src/performance_cluster.cpp
-    src/firing_order_display.cpp
-    src/load_simulation_cluster.cpp
-    src/mixer_cluster.cpp
-    src/info_cluster.cpp
+if (APPLE)
+    add_executable(engine-sim-app MACOSX_BUNDLE
+        # Source files
+        src/main.cpp
+        src/engine_sim_application.cpp
+        src/geometry_generator.cpp
+        src/simulation_object.cpp
+        src/piston_object.cpp
+        src/connecting_rod_object.cpp
+        src/ui_element.cpp
+        src/ui_manager.cpp
+        src/cylinder_pressure_gauge.cpp
+        src/ui_math.cpp
+        src/gauge.cpp
+        src/crankshaft_object.cpp
+        src/cylinder_bank_object.cpp
+        src/cylinder_head_object.cpp
+        src/ui_button.cpp
+        src/ui_utilities.cpp
+        src/combustion_chamber_object.cpp
+        src/oscilloscope.cpp
+        src/shaders.cpp
+        src/engine_view.cpp
+        src/right_gauge_cluster.cpp
+        src/cylinder_temperature_gauge.cpp
+        src/labeled_gauge.cpp
+        src/throttle_display.cpp
+        src/afr_cluster.cpp
+        src/fuel_cluster.cpp
+        src/oscilloscope_cluster.cpp
+        src/performance_cluster.cpp
+        src/firing_order_display.cpp
+        src/load_simulation_cluster.cpp
+        src/mixer_cluster.cpp
+        src/info_cluster.cpp
 
-    # Include files
-    include/delta.h
-    include/dtv.h
-    include/engine_sim_application.h
-    include/geometry_generator.h
-    include/simulation_object.h
-    include/piston_object.h
-    include/connecting_rod_object.h
-    include/ui_element.h
-    include/ui_manager.h
-    include/cylinder_pressure_gauge.h
-    include/ui_math.h
-    include/units.h
-    include/crankshaft_object.h
-    include/cylinder_bank_object.h
-    include/cylinder_head_object.h
-    include/ui_button.h
-    include/ui_utilities.h
-    include/combustion_chamber_object.h
-    include/oscilloscope.h
-    include/shaders.h
-    include/engine_view.h
-    include/right_gauge_cluster.h
-    include/cylinder_temperature_gauge.h
-    include/labeled_gauge.h
-    include/throttle_display.h
-    include/afr_cluster.h
-    include/fuel_cluster.h
-    include/oscilloscope_cluster.h
-    include/performance_cluster.h
-    include/firing_order_display.h
-    include/load_simulation_cluster.h
-    include/mixer_cluster.h
-    include/info_cluster.h
-)
+        # Include files
+        include/delta.h
+        include/dtv.h
+        include/engine_sim_application.h
+        include/geometry_generator.h
+        include/simulation_object.h
+        include/piston_object.h
+        include/connecting_rod_object.h
+        include/ui_element.h
+        include/ui_manager.h
+        include/cylinder_pressure_gauge.h
+        include/ui_math.h
+        include/units.h
+        include/crankshaft_object.h
+        include/cylinder_bank_object.h
+        include/cylinder_head_object.h
+        include/ui_button.h
+        include/ui_utilities.h
+        include/combustion_chamber_object.h
+        include/oscilloscope.h
+        include/shaders.h
+        include/engine_view.h
+        include/right_gauge_cluster.h
+        include/cylinder_temperature_gauge.h
+        include/labeled_gauge.h
+        include/throttle_display.h
+        include/afr_cluster.h
+        include/fuel_cluster.h
+        include/oscilloscope_cluster.h
+        include/performance_cluster.h
+        include/firing_order_display.h
+        include/load_simulation_cluster.h
+        include/mixer_cluster.h
+        include/info_cluster.h
+    )
+elseif (WIN32)
+    add_executable(engine-sim-app WIN32
+        # Source files
+        src/main.cpp
+        src/engine_sim_application.cpp
+        src/geometry_generator.cpp
+        src/simulation_object.cpp
+        src/piston_object.cpp
+        src/connecting_rod_object.cpp
+        src/ui_element.cpp
+        src/ui_manager.cpp
+        src/cylinder_pressure_gauge.cpp
+        src/ui_math.cpp
+        src/gauge.cpp
+        src/crankshaft_object.cpp
+        src/cylinder_bank_object.cpp
+        src/cylinder_head_object.cpp
+        src/ui_button.cpp
+        src/ui_utilities.cpp
+        src/combustion_chamber_object.cpp
+        src/oscilloscope.cpp
+        src/shaders.cpp
+        src/engine_view.cpp
+        src/right_gauge_cluster.cpp
+        src/cylinder_temperature_gauge.cpp
+        src/labeled_gauge.cpp
+        src/throttle_display.cpp
+        src/afr_cluster.cpp
+        src/fuel_cluster.cpp
+        src/oscilloscope_cluster.cpp
+        src/performance_cluster.cpp
+        src/firing_order_display.cpp
+        src/load_simulation_cluster.cpp
+        src/mixer_cluster.cpp
+        src/info_cluster.cpp
+
+        # Include files
+        include/delta.h
+        include/dtv.h
+        include/engine_sim_application.h
+        include/geometry_generator.h
+        include/simulation_object.h
+        include/piston_object.h
+        include/connecting_rod_object.h
+        include/ui_element.h
+        include/ui_manager.h
+        include/cylinder_pressure_gauge.h
+        include/ui_math.h
+        include/units.h
+        include/crankshaft_object.h
+        include/cylinder_bank_object.h
+        include/cylinder_head_object.h
+        include/ui_button.h
+        include/ui_utilities.h
+        include/combustion_chamber_object.h
+        include/oscilloscope.h
+        include/shaders.h
+        include/engine_view.h
+        include/right_gauge_cluster.h
+        include/cylinder_temperature_gauge.h
+        include/labeled_gauge.h
+        include/throttle_display.h
+        include/afr_cluster.h
+        include/fuel_cluster.h
+        include/oscilloscope_cluster.h
+        include/performance_cluster.h
+        include/firing_order_display.h
+        include/load_simulation_cluster.h
+        include/mixer_cluster.h
+        include/info_cluster.h
+    )
+else()
+    add_executable(engine-sim-app
+        # Source files
+        src/main.cpp
+        src/engine_sim_application.cpp
+        src/geometry_generator.cpp
+        src/simulation_object.cpp
+        src/piston_object.cpp
+        src/connecting_rod_object.cpp
+        src/ui_element.cpp
+        src/ui_manager.cpp
+        src/cylinder_pressure_gauge.cpp
+        src/ui_math.cpp
+        src/gauge.cpp
+        src/crankshaft_object.cpp
+        src/cylinder_bank_object.cpp
+        src/cylinder_head_object.cpp
+        src/ui_button.cpp
+        src/ui_utilities.cpp
+        src/combustion_chamber_object.cpp
+        src/oscilloscope.cpp
+        src/shaders.cpp
+        src/engine_view.cpp
+        src/right_gauge_cluster.cpp
+        src/cylinder_temperature_gauge.cpp
+        src/labeled_gauge.cpp
+        src/throttle_display.cpp
+        src/afr_cluster.cpp
+        src/fuel_cluster.cpp
+        src/oscilloscope_cluster.cpp
+        src/performance_cluster.cpp
+        src/firing_order_display.cpp
+        src/load_simulation_cluster.cpp
+        src/mixer_cluster.cpp
+        src/info_cluster.cpp
+
+        # Include files
+        include/delta.h
+        include/dtv.h
+        include/engine_sim_application.h
+        include/geometry_generator.h
+        include/simulation_object.h
+        include/piston_object.h
+        include/connecting_rod_object.h
+        include/ui_element.h
+        include/ui_manager.h
+        include/cylinder_pressure_gauge.h
+        include/ui_math.h
+        include/units.h
+        include/crankshaft_object.h
+        include/cylinder_bank_object.h
+        include/cylinder_head_object.h
+        include/ui_button.h
+        include/ui_utilities.h
+        include/combustion_chamber_object.h
+        include/oscilloscope.h
+        include/shaders.h
+        include/engine_view.h
+        include/right_gauge_cluster.h
+        include/cylinder_temperature_gauge.h
+        include/labeled_gauge.h
+        include/throttle_display.h
+        include/afr_cluster.h
+        include/fuel_cluster.h
+        include/oscilloscope_cluster.h
+        include/performance_cluster.h
+        include/firing_order_display.h
+        include/load_simulation_cluster.h
+        include/mixer_cluster.h
+        include/info_cluster.h
+    )
+endif()
 
 target_link_libraries(engine-sim-app
     engine-sim
@@ -288,13 +437,13 @@ if (PIRANHA_ENABLED)
         engine-sim-script-interpreter)
 endif (PIRANHA_ENABLED)
 
-if (DISCORD_ENABLED)
+if (DISCORD_ENABLED AND WIN32)
     add_library(discord-rpc STATIC IMPORTED)
     set_property(TARGET discord-rpc PROPERTY IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/dependencies/discord/lib/discord-rpc.lib)
     target_link_libraries(engine-sim-app
-    	discord
-	discord-rpc)
-endif (DISCORD_ENABLED)
+        discord
+        discord-rpc)
+endif (DISCORD_ENABLED AND WIN32)
 
 target_include_directories(engine-sim-app
     PUBLIC dependencies/submodules)
@@ -303,19 +452,21 @@ add_subdirectory(dependencies)
 
 # GTEST
 
-enable_testing()
+if (BUILD_TESTING)
+    enable_testing()
 
-add_executable(engine-sim-test
-    # Source files
-    test/gas_system_tests.cpp
-    test/function_test.cpp
-    test/synthesizer_tests.cpp
-)
+    add_executable(engine-sim-test
+        # Source files
+        test/gas_system_tests.cpp
+        test/function_test.cpp
+        test/synthesizer_tests.cpp
+    )
 
-target_link_libraries(engine-sim-test
-    gtest_main
-    engine-sim
-)
+    target_link_libraries(engine-sim-test
+        gtest_main
+        engine-sim
+    )
 
-include(GoogleTest)
-gtest_discover_tests(engine-sim-test)
+    include(GoogleTest)
+    gtest_discover_tests(engine-sim-test)
+endif ()

@@ -5,6 +5,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <climits>
 
 LoadSimulationCluster::LoadSimulationCluster() {
     m_torqueGauge = nullptr;

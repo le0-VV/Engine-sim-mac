@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <sstream>
+#include <climits>
 
 RightGaugeCluster::RightGaugeCluster() {
     m_engine = nullptr;
