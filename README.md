@@ -1,5 +1,5 @@
 # Engine Simulator
-![Alt text](docs/public/screenshots/screenshot_v01.png?raw=true)
+![Alt text](docs/public/screenshots/Screenshot.png?raw=true)
 ---
 # Engine Simulator has moved!
 
