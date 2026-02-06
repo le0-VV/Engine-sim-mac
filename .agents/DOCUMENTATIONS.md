@@ -1,0 +1,12 @@
+- C++17 reference: https://en.cppreference.com/w/cpp/17.html
+- CMake documentation: https://cmake.org/documentation/
+- OpenGL specifications registry: https://registry.khronos.org/opengl
+- SDL2 documentation wiki: https://wiki.libsdl.org/SDL2
+- GoogleTest User’s Guide: https://google.github.io/googletest/
+- FFmpeg documentation: https://ffmpeg.org/ffmpeg-doc.html
+- Discord RPC (Rich Presence) library: https://github.com/discord/discord-rpc
+- Delta Studio (engine dependency): https://github.com/ange-yaghi/delta-studio
+- Piranha scripting engine: https://github.com/ange-yaghi/piranha
+- Simple 2D Constraint Solver: https://github.com/ange-yaghi/simple-2d-constraint-solver
+- Direct-to-Video library: https://github.com/ange-yaghi/direct-to-video
+- CSV-IO library: https://github.com/ange-yaghi/csv-io
