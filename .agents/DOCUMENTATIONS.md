@@ -21,6 +21,14 @@
 - Metal Shading Language specification: https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf
 - Xcode metal compiler (`metal`) and linker (`metallib`) usage: https://developer.apple.com/documentation/metal/libraries/building_a_library_with_metal_s_command-line_tools
 - Apple Metal shader converter: https://developer.apple.com/metal/shader-converter/
+- CAMetalLayer: https://developer.apple.com/documentation/quartzcore/cametallayer
+- MTLRenderPipelineDescriptor: https://developer.apple.com/documentation/metal/mtlrenderpipelinedescriptor
+- MTLVertexDescriptor: https://developer.apple.com/documentation/metal/mtlvertexdescriptor
+- MTLRenderPassDescriptor: https://developer.apple.com/documentation/metal/mtlrenderpassdescriptor
+- MTLBuffer: https://developer.apple.com/documentation/metal/mtlbuffer
+- MTLTexture: https://developer.apple.com/documentation/metal/mtltexture
+- MTLRenderCommandEncoder: https://developer.apple.com/documentation/metal/mtlrendercommandencoder
+- Metal best practices (functions/libraries): https://developer.apple.com/library/archive/documentation/3DDrawing/Conceptual/MTLBestPracticesGuide/FunctionsandLibraries.html
 - DirectX Shader Compiler (DXC): https://github.com/microsoft/DirectXShaderCompiler
 - glslang (GLSL/HLSL -> SPIR-V): https://github.com/KhronosGroup/glslang
 - SPIRV-Cross (SPIR-V -> MSL): https://github.com/KhronosGroup/SPIRV-Cross
