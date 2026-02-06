@@ -1,2 +1,3 @@
 - When .agents/DOCUMENTATIONS.md is updated, commit ONLY .agents/DOCUMENTATIONS.md with commit message: "docs(agent docs): agent added more doc sources"
 - When .agents/MEMORY.md is updated, commit ONLY .agents/MEMORY.md with commit message: "docs(agent memory): update memory"
+- If asked to debug the build script, run it yourself, find the issue, and fix it.
