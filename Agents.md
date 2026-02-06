@@ -3,6 +3,7 @@
 - **DO NOT, UNDER ANY CIRCUMSTANCES, UNLESS EXPLICITLY INSTRUCTED BY THE USER**, modify this file or ./.agents/INSTRUCTIONS.md
 - Follow the instructions of ./.agents/INSTRUCTIONS.md
 - Find up-to-date documentations for any library, framework and programming languages used in this project, and record their source URLs in ./.agents/DOCUMENTATIONS.md
+- While you write code, **CONSTANTLY** refer to sources you recorded in ./.agents/DOCUMENTATIONS.md to make sure you're writing accurate, working and standard-complying code.
 - Anything the user asks you to remember, record it in ./.agents/MEMORY.md
 - If the user's message referred to anything that may have been part of a past conversation, but is not present in your context, check ./.agents/MEMORY.md
 - If you have **ANY** questions or concerns, **IMMEDIATELY** clarify with the user.
