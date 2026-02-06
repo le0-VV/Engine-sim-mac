@@ -6,6 +6,8 @@
 - While you write code, **CONSTANTLY** refer to sources you recorded in ./.agents/DOCUMENTATIONS.md to make sure you're writing accurate, working and standard-complying code.
 - Anything the user asks you to remember, record it in ./.agents/MEMORY.md
 - If the user's message referred to anything that may have been part of a past conversation, but is not present in your context, check ./.agents/MEMORY.md
+- When .agents/DOCUMENTATIONS.md is updated, commit ONLY .agents/DOCUMENTATIONS.md with commit message: "docs(agent docs): agent added more doc sources"
+- When .agents/MEMORY.md is updated, commit ONLY .agents/MEMORY.md with commit message: "docs(agent memory): update memory"
 - If you have **ANY** questions or concerns, **IMMEDIATELY** clarify with the user.
 - Before making any changes to the codebase, THOROUGHLY plan out your work, write down every step you're going to take in ./.agents/TODO.md, and follow it during your work.
 - Tick off every item you completed in ./.agents/TODO.md.
