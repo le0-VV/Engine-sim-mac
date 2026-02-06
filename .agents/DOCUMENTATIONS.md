@@ -10,3 +10,10 @@
 - Simple 2D Constraint Solver: https://github.com/ange-yaghi/simple-2d-constraint-solver
 - Direct-to-Video library: https://github.com/ange-yaghi/direct-to-video
 - CSV-IO library: https://github.com/ange-yaghi/csv-io
+- Audio Unit v2 (C) API: https://developer.apple.com/documentation/audiotoolbox/audio-unit-v2-c-api
+- AUHAL (HAL Output Audio Unit) technical note: https://developer.apple.com/library/archive/technotes/tn2091/_index.html
+- AppKit NSWindow: https://developer.apple.com/documentation/appkit/nswindow
+- AppKit NSView: https://developer.apple.com/documentation/appkit/nsview
+- AppKit NSEvent: https://developer.apple.com/documentation/appkit/nsevent
+- NSOpenGLContext (OpenGL on macOS): https://developer.apple.com/documentation/appkit/nsopenglcontext
+- OpenGL on the Mac Platform guide: https://developer.apple.com/library/archive/documentation/GraphicsImaging/Conceptual/OpenGL-MacProgGuide/opengl_pg_concepts/opengl_pg_concepts.html
