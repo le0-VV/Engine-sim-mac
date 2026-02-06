@@ -1,5 +1,7 @@
-# Ignore user's workspace
+# Ignore user's workspace files
 workspace/
+.envrc
+.vscode
 
 # Build directory
 build/
@@ -11,6 +13,8 @@ compile_commands.json
 # Blender temporary files
 *.blend1
 
+# log artifacts
 *.log
-.envrc
-.vscode
+
+# Agentic files
+.agents/TODO.md
