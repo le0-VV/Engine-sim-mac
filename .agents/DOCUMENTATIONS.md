@@ -17,3 +17,10 @@
 - AppKit NSEvent: https://developer.apple.com/documentation/appkit/nsevent
 - NSOpenGLContext (OpenGL on macOS): https://developer.apple.com/documentation/appkit/nsopenglcontext
 - OpenGL on the Mac Platform guide: https://developer.apple.com/library/archive/documentation/GraphicsImaging/Conceptual/OpenGL-MacProgGuide/opengl_pg_concepts/opengl_pg_concepts.html
+- Metal framework overview: https://developer.apple.com/documentation/metal
+- Metal Shading Language specification: https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf
+- Xcode metal compiler (`metal`) and linker (`metallib`) usage: https://developer.apple.com/documentation/metal/libraries/building_a_library_with_metal_s_command-line_tools
+- Apple Metal shader converter: https://developer.apple.com/metal/shader-converter/
+- DirectX Shader Compiler (DXC): https://github.com/microsoft/DirectXShaderCompiler
+- glslang (GLSL/HLSL -> SPIR-V): https://github.com/KhronosGroup/glslang
+- SPIRV-Cross (SPIR-V -> MSL): https://github.com/KhronosGroup/SPIRV-Cross
