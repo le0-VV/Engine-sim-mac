@@ -1,1 +1,134 @@
 - [ ] Memory optimization pass (deferred): investigate and reduce remaining slow runtime memory creep after Metal port completion.
+
+## Debug Logging Backlog (Port Parity)
+
+### P0 - Must Have
+- [x] Add `DEBUG_TRACE` runtime toggle and startup banner showing active log categories.
+- [x] Add monotonic timestamp + frame index + thread id in every trace line.
+- [x] Add per-frame `FrameBegin` log with dt, window size, focused state.
+- [x] Add per-frame `FrameEnd` log with total CPU frame time.
+- [x] Add per-frame `EndFrame enter/exit` log in DeltaEngine.
+- [x] Add per-frame `Present enter/exit` log in Metal device.
+- [x] Log command buffer allocation success/failure each frame.
+- [x] Log command buffer commit result/status each frame.
+- [x] Log drawable acquisition success/failure and retry count.
+- [x] Log render pass descriptor validity before encoding.
+- [x] Log null/invalid render target guard hits.
+- [x] Log null/invalid pipeline state guard hits.
+- [x] Log null/invalid vertex buffer guard hits.
+- [x] Log null/invalid constant buffer guard hits.
+- [x] Log `SetRenderTarget` caller + target id when changed.
+- [x] Log `UseShader` caller + shader id when changed.
+- [x] Log `UseVertexBuffer` caller + buffer id when changed.
+- [x] Log `UseIndexBuffer` caller + buffer id when changed.
+- [x] Log `UseConstantBuffer` caller + buffer id when changed.
+- [x] Log `EditBufferDataRange` size/offset per call.
+- [x] Log `EditBufferDataRange` rejected/overflow cases.
+- [x] Log draw call count per frame (total + per pass).
+- [x] Log indexed vs non-indexed draw counts per frame.
+- [x] Log zero-vertex or zero-index draw attempts.
+- [x] Log pass boundary markers: UI pass begin/end.
+- [x] Log swapchain/backbuffer resize events with dimensions.
+- [x] Log window create success/failure and native handle state.
+- [x] Log window close requested source (event/shortcut/code path).
+- [x] Log app lifecycle: startup begin, initialize begin/end, destroy begin/end.
+- [x] Log script load begin/end and active script path.
+- [x] Log script reload trigger source (Enter key/menu/auto reload).
+- [x] Log major input events: key down/up for mapped controls.
+- [x] Log mouse wheel deltas routed to control bindings.
+- [x] Log input dispatch queue depth per frame.
+- [x] Log focus gained/lost and pause/resume policy.
+- [x] Log audio thread start/stop lifecycle.
+- [x] Log audio render callback cycle time.
+- [x] Log audio underrun/overrun counters.
+- [x] Log allocation-heavy subsystems entering/leaving update.
+- [x] Log error-system call-stack overflow counter once per second.
+- [x] Log exception/abort handler install and trigger events.
+- [x] Log main-thread heartbeat once per second.
+- [x] Log event-loop poll count and processing latency each frame.
+- [x] Log stall warning when frame exceeds threshold (e.g., 33ms/100ms/500ms).
+
+### P1 - High Value
+- [ ] Log per-widget draw start/end with widget id/name.
+- [ ] Log per-widget visibility and culling decisions.
+- [ ] Log per-widget bounds (x,y,w,h) at draw time.
+- [ ] Log per-widget z-order/layer at draw time.
+- [ ] Log per-widget invalidation reason codes.
+- [ ] Log UI layout recompute begin/end and duration.
+- [ ] Log panel/tab active state transitions.
+- [x] Log selected layer/screen transitions (Tab, M, comma).
+- [ ] Log gauge value updates (rpm, dyno speed, torque, hp).
+- [ ] Log throttle/clutch/brake effective values after input smoothing.
+- [ ] Log gear changes with old/new value and source.
+- [ ] Log ignition/starter toggles with source.
+- [ ] Log dyno enable/disable and RPM hold state transitions.
+- [ ] Log simulation frequency/time-warp changes.
+- [ ] Log camera/view transform updates.
+- [ ] Log asset manager load counts and cache hit/miss summary.
+- [ ] Log texture creation/destruction with dimensions/format.
+- [ ] Log shader compile/load success/failure with file path.
+- [ ] Log shader fallback path activation.
+- [ ] Log pipeline creation/destruction counts.
+- [ ] Log buffer creation/destruction counts with byte size.
+- [ ] Log transient buffer ring usage/wrap events.
+- [ ] Log render target creation/destruction counts.
+- [ ] Log command encoder begin/end counts per frame.
+- [ ] Log CPU-side render queue length each frame.
+- [ ] Log duplicate state-bind suppression counts.
+- [ ] Log skipped work due to unchanged state counts.
+- [ ] Log frame resource recycler activity.
+- [ ] Log pending GPU resource release queue length.
+- [ ] Log deferred deletion flush points.
+- [ ] Log hot path allocations above threshold size.
+- [ ] Log per-subsystem update duration: UI, render prep, audio prep, script.
+- [ ] Log input-to-visual-latency estimate.
+- [ ] Log first-frame-complete milestone.
+- [x] Log fullscreen enter/exit attempts and outcome.
+- [ ] Log DPI scale changes and resulting UI scale.
+- [ ] Log window resize begin/end and final committed size.
+- [ ] Log event coalescing counts for resize/mouse wheel.
+- [ ] Log periodic memory snapshot (RSS, physical footprint, IOSurface, malloc metadata).
+- [ ] Log periodic object counters (widgets, textures, pipelines, buffers).
+- [ ] Log growth trend warnings when memory slope exceeds threshold.
+- [ ] Log repeated identical errors with rate-limited aggregator.
+- [ ] Log watchdog warnings for non-responsive main thread windows.
+- [ ] Log user-visible mode transitions (screen, overlays, dyno panel).
+- [ ] Log script variable diffs for key runtime state.
+
+### P2 - Deep/Optional
+- [ ] Log every render state transition (blend/depth/stencil/rasterizer).
+- [ ] Log viewport/scissor changes with caller.
+- [ ] Log every texture bind slot change.
+- [ ] Log every sampler state bind change.
+- [ ] Log every constant update payload hash.
+- [ ] Log every vertex/index buffer subrange bind.
+- [ ] Log every draw item key used for sorting/batching.
+- [ ] Log per-draw shader uniform snapshot for selected widgets.
+- [ ] Log material parameter diffs for each draw.
+- [ ] Log script VM call entry/exit around heavy callbacks.
+- [ ] Log script variable writes for selected namespaces.
+- [ ] Log per-frame JSON trace export option.
+- [ ] Log category-based trace sinks (stdout/file/ring-buffer).
+- [ ] Log binary ring-buffer trace for long sessions.
+- [ ] Log on-demand trace dump on signal/hotkey.
+- [ ] Log lock acquisition wait time for key mutexes.
+- [ ] Log contention counters for render/audio/shared-state locks.
+- [ ] Log queue lengths for cross-thread mailboxes.
+- [ ] Log thread wake/sleep transitions for worker threads.
+- [ ] Log scheduler drift vs target frame cadence.
+- [ ] Log audio-device reconfiguration events.
+- [ ] Log I/O latency for asset reads.
+- [ ] Log filesystem watcher events and debounce actions.
+- [ ] Log shader translation/cache invalidation actions.
+- [ ] Log fallback code-path activations with stack snippets.
+- [ ] Log callsite histogram for `EditBufferDataRange`.
+- [ ] Log callsite histogram for `SetRenderTarget`.
+- [ ] Log callsite histogram for `UseConstantBuffer`.
+- [ ] Log command encoder label strings for capture tooling.
+- [ ] Log probable redundant draw detection warnings.
+- [ ] Log dead/hidden widget draw attempts.
+- [ ] Log per-frame top-N slow functions summary.
+- [ ] Log cumulative counters reset points (start/stop session).
+- [ ] Log anomaly detector output for sudden frame-time spikes.
+- [ ] Log anomaly detector output for sudden memory spikes.
+- [ ] Add trace replay parser script task to correlate events offline.

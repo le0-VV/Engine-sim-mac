@@ -77,6 +77,7 @@ add_library(engine-sim STATIC
     src/delay_filter.cpp
     src/derivative_filter.cpp
     src/direct_throttle_linkage.cpp
+    src/debug_trace.cpp
     src/dynamometer.cpp
     src/engine.cpp
     src/exhaust_system.cpp
@@ -119,6 +120,7 @@ add_library(engine-sim STATIC
     include/cylinder_bank.h
     include/cylinder_head.h
     include/delay_filter.h
+    include/debug_trace.h
     include/derivative_filter.h
     include/direct_throttle_linkage.h
     include/dynamometer.h

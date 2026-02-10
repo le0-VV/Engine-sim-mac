@@ -2,6 +2,7 @@
 
 #include "../include/utilities.h"
 #include "../include/delta.h"
+#include "../include/debug_trace.h"
 
 #include <algorithm>
 #include <cassert>
@@ -127,12 +128,14 @@ void Synthesizer::initializeImpulseResponse(
 }
 
 void Synthesizer::startAudioRenderingThread() {
+    DebugTrace::Log("audio_thread", "startAudioRenderingThread requested");
     m_run = true;
     m_thread = new std::thread(&Synthesizer::audioRenderingThread, this);
 }
 
 void Synthesizer::endAudioRenderingThread() {
     if (m_thread != nullptr) {
+        DebugTrace::Log("audio_thread", "endAudioRenderingThread begin");
         m_run = false;
         endInputBlock();
 
@@ -140,6 +143,7 @@ void Synthesizer::endAudioRenderingThread() {
         delete m_thread;
 
         m_thread = nullptr;
+        DebugTrace::Log("audio_thread", "endAudioRenderingThread complete");
     }
 }
 
@@ -255,9 +259,56 @@ void Synthesizer::endInputBlock() {
 }
 
 void Synthesizer::audioRenderingThread() {
+    DebugTrace::Log("audio_thread", "audioRenderingThread started");
+    auto nextHeartbeat = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+    int cyclesSinceHeartbeat = 0;
+    int underrunCount = 0;
+    int overrunCount = 0;
+    long long totalCycleMicros = 0;
+
     while (m_run) {
+        const auto cycleStart = std::chrono::steady_clock::now();
         renderAudio();
+        ++cyclesSinceHeartbeat;
+        const auto cycleEnd = std::chrono::steady_clock::now();
+        totalCycleMicros += std::chrono::duration_cast<std::chrono::microseconds>(cycleEnd - cycleStart).count();
+
+        if (m_inputChannelCount > 0 && m_inputChannels != nullptr) {
+            if (m_inputChannels[0].data.size() <= 0) {
+                ++underrunCount;
+            }
+            else if (m_inputChannels[0].data.size() > (size_t)(m_inputBufferSize * 3 / 4)) {
+                ++overrunCount;
+            }
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= nextHeartbeat) {
+            const double avgCycleMicros =
+                (cyclesSinceHeartbeat > 0)
+                ? static_cast<double>(totalCycleMicros) / cyclesSinceHeartbeat
+                : 0.0;
+            DebugTrace::Log(
+                "audio_thread",
+                "heartbeat cycles=%d input_channels=%d input_buffer=%d audio_buffer=%d latency=%.6f processed=%d avg_cycle_us=%.2f underrun=%d overrun=%d",
+                cyclesSinceHeartbeat,
+                m_inputChannelCount,
+                (m_inputChannelCount > 0 && m_inputChannels != nullptr) ? static_cast<int>(m_inputChannels[0].data.size()) : 0,
+                static_cast<int>(m_audioBuffer.size()),
+                getLatency(),
+                m_processed ? 1 : 0,
+                avgCycleMicros,
+                underrunCount,
+                overrunCount);
+            cyclesSinceHeartbeat = 0;
+            totalCycleMicros = 0;
+            underrunCount = 0;
+            overrunCount = 0;
+            nextHeartbeat = now + std::chrono::seconds(1);
+        }
     }
+
+    DebugTrace::Log("audio_thread", "audioRenderingThread exiting");
 }
 
 #undef max

@@ -1,4 +1,5 @@
 #include "../include/simulator.h"
+#include "../include/debug_trace.h"
 
 Simulator::Simulator() {
     m_engine = nullptr;
@@ -26,6 +27,7 @@ Simulator::~Simulator() {
 }
 
 void Simulator::initialize(const Parameters &params) {
+    DebugTrace::Log("simulator", "initialize begin system_type=%d", static_cast<int>(params.systemType));
     if (params.systemType == SystemType::NsvOptimized) {
         atg_scs::OptimizedNsvRigidBodySystem *system =
             new atg_scs::OptimizedNsvRigidBodySystem;
@@ -46,6 +48,7 @@ void Simulator::initialize(const Parameters &params) {
     for (int i = 0; i < DynoTorqueSamples; ++i) {
         m_dynoTorqueSamples[i] = 0.0;
     }
+    DebugTrace::Log("simulator", "initialize complete");
 }
 
 void Simulator::loadSimulation(Engine *engine, Vehicle *vehicle, Transmission *transmission) {
@@ -55,10 +58,12 @@ void Simulator::loadSimulation(Engine *engine, Vehicle *vehicle, Transmission *t
 }
 
 void Simulator::releaseSimulation() {
+    DebugTrace::Log("simulator", "releaseSimulation begin");
     m_synthesizer.endAudioRenderingThread();
     if (m_system != nullptr) m_system->reset();
 
     destroy();
+    DebugTrace::Log("simulator", "releaseSimulation complete");
 }
 
 void Simulator::startFrame(double dt) {
@@ -165,14 +170,18 @@ void Simulator::endFrame() {
 }
 
 void Simulator::destroy() {
+    DebugTrace::Log("simulator", "destroy begin");
     m_synthesizer.destroy();
+    DebugTrace::Log("simulator", "destroy complete");
 }
 
 void Simulator::startAudioRenderingThread() {
+    DebugTrace::Log("simulator", "startAudioRenderingThread");
     m_synthesizer.startAudioRenderingThread();
 }
 
 void Simulator::endAudioRenderingThread() {
+    DebugTrace::Log("simulator", "endAudioRenderingThread");
     m_synthesizer.endAudioRenderingThread();
 }
 

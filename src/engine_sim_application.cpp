@@ -13,6 +13,7 @@
 #include "../include/exhaust_system.h"
 #include "../include/feedback_comb_filter.h"
 #include "../include/utilities.h"
+#include "../include/debug_trace.h"
 
 #include "../scripting/include/compiler.h"
 
@@ -20,6 +21,7 @@
 #include <stdlib.h>
 #include <sstream>
 #include <cstdio>
+#include <array>
 
 #if ATG_ENGINE_SIM_DISCORD_ENABLED && defined(_WIN32)
 #include "../discord/Discord.h"
@@ -90,6 +92,8 @@ EngineSimApplication::~EngineSimApplication() {
 }
 
 void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI api) {
+    DebugTrace::Log("app", "initialize(void*, api=%d) begin", static_cast<int>(api));
+
     dbasic::Path modulePath = dbasic::GetModulePath();
     dbasic::Path confPath = modulePath.Append("delta.conf");
 
@@ -149,8 +153,10 @@ void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI
     if (createWindowError != ysError::None) {
         std::fprintf(stderr, "[engine-sim] CreateGameWindow failed: %d\n", (int)createWindowError);
         std::fflush(stderr);
+        DebugTrace::Log("app", "CreateGameWindow failed: code=%d", static_cast<int>(createWindowError));
         return;
     }
+    DebugTrace::Log("app", "CreateGameWindow succeeded");
 
     m_engine.GetDevice()->CreateSubRenderTarget(
         &m_mainRenderTarget,
@@ -182,9 +188,11 @@ void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI
     m_geometryGenerator.initialize(100000, 200000);
 
     initialize();
+    DebugTrace::Log("app", "initialize(void*, api=%d) complete", static_cast<int>(api));
 }
 
 void EngineSimApplication::initialize() {
+    DebugTrace::Log("app", "initialize() begin; asset_root=%s", m_assetPath.c_str());
     m_shaders.SetClearColor(ysColor::srgbiToLinear(0x34, 0x98, 0xdb));
     const std::string assetsDir = m_assetPath + "/assets";
     const std::string assetsBase = assetsDir + "/assets";
@@ -195,6 +203,7 @@ void EngineSimApplication::initialize() {
             if (loadErr != ysError::None) {
                 std::fprintf(stderr, "[engine-sim] LoadSceneFile failed: %d\n", (int)loadErr);
                 std::fflush(stderr);
+                DebugTrace::Log("assets", "LoadSceneFile failed: code=%d", static_cast<int>(loadErr));
                 return;
             }
         }
@@ -203,12 +212,14 @@ void EngineSimApplication::initialize() {
             if (compileErr != ysError::None) {
                 std::fprintf(stderr, "[engine-sim] CompileInterchangeFile failed: %d\n", (int)compileErr);
                 std::fflush(stderr);
+                DebugTrace::Log("assets", "CompileInterchangeFile failed: code=%d", static_cast<int>(compileErr));
                 return;
             }
             ysError loadErr = m_assetManager.LoadSceneFile(assetsBase.c_str(), true);
             if (loadErr != ysError::None) {
                 std::fprintf(stderr, "[engine-sim] LoadSceneFile failed: %d\n", (int)loadErr);
                 std::fflush(stderr);
+                DebugTrace::Log("assets", "LoadSceneFile after compile failed: code=%d", static_cast<int>(loadErr));
                 return;
             }
         }
@@ -216,6 +227,7 @@ void EngineSimApplication::initialize() {
     else {
         std::fprintf(stderr, "[engine-sim] assets path not found: %s\n", assetsDir.c_str());
         std::fflush(stderr);
+        DebugTrace::Log("assets", "assets path not found: %s", assetsDir.c_str());
         return;
     }
 
@@ -224,6 +236,7 @@ void EngineSimApplication::initialize() {
     m_textRenderer.SetFont(m_engine.GetConsole()->GetFont());
 
     loadScript();
+    DebugTrace::Log("script", "initial script loaded");
 
     m_audioBuffer.initialize(44100, 44100);
     m_audioBuffer.m_writePointer = (int)(44100 * 0.1);
@@ -241,6 +254,7 @@ void EngineSimApplication::initialize() {
         : ysAudioSource::Mode::Stop);
     m_audioSource->SetPan(0.0f);
     m_audioSource->SetVolume(1.0f);
+    DebugTrace::Log("audio", "audio source initialized");
 
 #if ATG_ENGINE_SIM_DISCORD_ENABLED && defined(_WIN32)
     // Create a global instance of discord-rpc
@@ -256,6 +270,7 @@ void EngineSimApplication::initialize() {
 
     GetDiscordManager()->SetStatus(passMe, engineName, s_buildVersion);
 #endif /* ATG_ENGINE_SIM_DISCORD_ENABLED && _WIN32 */
+    DebugTrace::Log("app", "initialize() complete");
 }
 
 void EngineSimApplication::process(float frame_dt) {
@@ -404,15 +419,47 @@ float EngineSimApplication::unitsToPixels(float units) const {
 }
 
 void EngineSimApplication::run() {
-    while (true) {
-        m_engine.StartFrame();
+    DebugTrace::Log("app", "run() begin");
+    auto nextHeartbeat = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+    int framesSinceHeartbeat = 0;
+    unsigned long long frameIndex = 0;
+    bool lastFocusState = false;
+    bool focusStateInitialized = false;
 
-        if (!m_engine.IsOpen()) break;
+    while (true) {
+        ++frameIndex;
+        DebugTrace::SetFrameIndex(frameIndex);
+        const auto frameCpuStart = std::chrono::steady_clock::now();
+
+        m_engine.StartFrame();
+        ++framesSinceHeartbeat;
+
+        const bool frameWindowActive = (m_engine.GetGameWindow() != nullptr) ? m_engine.GetGameWindow()->IsActive() : false;
+        DebugTrace::Log(
+            "mainloop",
+            "FrameBegin dt=%.6f window=%dx%d focused=%d",
+            m_engine.GetFrameLength(),
+            m_engine.GetScreenWidth(),
+            m_engine.GetScreenHeight(),
+            frameWindowActive ? 1 : 0);
+
+        if (!focusStateInitialized || frameWindowActive != lastFocusState) {
+            DebugTrace::Log("window", "focus %s; pause_policy=manual_only", frameWindowActive ? "gained" : "lost");
+            lastFocusState = frameWindowActive;
+            focusStateInitialized = true;
+        }
+
+        if (!m_engine.IsOpen()) {
+            DebugTrace::Log("app", "run loop exit: window closed");
+            break;
+        }
         if (m_engine.ProcessKeyDown(ysKey::Code::Escape)) {
+            DebugTrace::Log("input", "escape pressed; exiting run loop");
             break;
         }
 
         if (m_engine.ProcessKeyDown(ysKey::Code::Return)) {
+            DebugTrace::Log("script", "reload requested via Return key");
             m_audioSource->SetMode(ysAudioSource::Mode::Stop);
             loadScript();
             if (m_simulator->getEngine() != nullptr) {
@@ -423,16 +470,19 @@ void EngineSimApplication::run() {
         if (m_engine.ProcessKeyDown(ysKey::Code::Tab)) {
             m_screen++;
             if (m_screen > 2) m_screen = 0;
+            DebugTrace::Log("ui", "screen changed to %d", m_screen);
         }
 
         if (m_engine.ProcessKeyDown(ysKey::Code::F)) {
             if (m_engine.GetGameWindow()->GetWindowStyle() != ysWindow::WindowStyle::Fullscreen) {
                 m_engine.GetGameWindow()->SetWindowStyle(ysWindow::WindowStyle::Fullscreen);
                 m_infoCluster->setLogMessage("Entered fullscreen mode");
+                DebugTrace::Log("window", "entered fullscreen");
             }
             else {
                 m_engine.GetGameWindow()->SetWindowStyle(ysWindow::WindowStyle::Windowed);
                 m_infoCluster->setLogMessage("Exited fullscreen mode");
+                DebugTrace::Log("window", "exited fullscreen");
             }
         }
 
@@ -442,7 +492,14 @@ void EngineSimApplication::run() {
 
         updateScreenSizeStability();
 
+        const auto inputStart = std::chrono::steady_clock::now();
+        DebugTrace::Log("mainloop", "allocation-heavy enter processEngineInput");
         processEngineInput();
+        {
+            const auto inputEnd = std::chrono::steady_clock::now();
+            const auto inputMicros = std::chrono::duration_cast<std::chrono::microseconds>(inputEnd - inputStart).count();
+            DebugTrace::Log("mainloop", "allocation-heavy leave processEngineInput duration_us=%lld", static_cast<long long>(inputMicros));
+        }
 
         if (m_engine.ProcessKeyDown(ysKey::Code::Insert) &&
             m_engine.GetGameWindow()->IsActive()) {
@@ -459,17 +516,68 @@ void EngineSimApplication::run() {
         }
 
         if (!m_paused || m_engine.ProcessKeyDown(ysKey::Code::Right)) {
+            const auto simStart = std::chrono::steady_clock::now();
+            DebugTrace::Log("mainloop", "allocation-heavy enter process");
             process(m_engine.GetFrameLength());
+            const auto simEnd = std::chrono::steady_clock::now();
+            const auto simMicros = std::chrono::duration_cast<std::chrono::microseconds>(simEnd - simStart).count();
+            DebugTrace::Log("mainloop", "allocation-heavy leave process duration_us=%lld", static_cast<long long>(simMicros));
         }
 
+        const auto uiStart = std::chrono::steady_clock::now();
+        DebugTrace::Log("mainloop", "allocation-heavy enter ui_update");
         m_uiManager.update(m_engine.GetFrameLength());
+        const auto uiEnd = std::chrono::steady_clock::now();
+        DebugTrace::Log(
+            "mainloop",
+            "allocation-heavy leave ui_update duration_us=%lld",
+            static_cast<long long>(std::chrono::duration_cast<std::chrono::microseconds>(uiEnd - uiStart).count()));
 
+        const auto renderStart = std::chrono::steady_clock::now();
+        DebugTrace::Log("mainloop", "allocation-heavy enter renderScene");
         renderScene();
+        const auto renderEnd = std::chrono::steady_clock::now();
+        DebugTrace::Log(
+            "mainloop",
+            "allocation-heavy leave renderScene duration_us=%lld",
+            static_cast<long long>(std::chrono::duration_cast<std::chrono::microseconds>(renderEnd - renderStart).count()));
 
         m_engine.EndFrame();
 
         if (isRecording()) {
             recordFrame();
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= nextHeartbeat) {
+            const float frameLength = m_engine.GetFrameLength();
+            const double fps = (frameLength > 0.0f) ? 1.0 / frameLength : 0.0;
+            DebugTrace::Log(
+                "mainloop",
+                "heartbeat frames=%d frame_dt=%.6f fps=%.2f avg_fps=%.2f screen=%dx%d game_h=%d",
+                framesSinceHeartbeat,
+                frameLength,
+                fps,
+                m_engine.GetAverageFramerate(),
+                m_screenWidth,
+                m_screenHeight,
+                m_gameWindowHeight);
+            framesSinceHeartbeat = 0;
+            nextHeartbeat = now + std::chrono::seconds(1);
+        }
+
+        const auto frameCpuEnd = std::chrono::steady_clock::now();
+        const auto frameCpuMicros = std::chrono::duration_cast<std::chrono::microseconds>(frameCpuEnd - frameCpuStart).count();
+        const double frameCpuMs = static_cast<double>(frameCpuMicros) / 1000.0;
+        DebugTrace::Log("mainloop", "FrameEnd cpu_ms=%.3f", frameCpuMs);
+        if (frameCpuMs > 500.0) {
+            DebugTrace::Log("mainloop", "stall_warning threshold=500ms cpu_ms=%.3f", frameCpuMs);
+        }
+        else if (frameCpuMs > 100.0) {
+            DebugTrace::Log("mainloop", "stall_warning threshold=100ms cpu_ms=%.3f", frameCpuMs);
+        }
+        else if (frameCpuMs > 33.0) {
+            DebugTrace::Log("mainloop", "stall_warning threshold=33ms cpu_ms=%.3f", frameCpuMs);
         }
     }
 
@@ -478,9 +586,11 @@ void EngineSimApplication::run() {
     }
 
     m_simulator->endAudioRenderingThread();
+    DebugTrace::Log("app", "run() end");
 }
 
 void EngineSimApplication::destroy() {
+    DebugTrace::Log("app", "destroy() begin");
     m_shaderSet.Destroy();
 
     m_engine.GetDevice()->DestroyGPUBuffer(m_geometryVertexBuffer);
@@ -491,6 +601,7 @@ void EngineSimApplication::destroy() {
 
     m_simulator->destroy();
     m_audioBuffer.destroy();
+    DebugTrace::Log("app", "destroy() complete");
 }
 
 void EngineSimApplication::loadEngine(
@@ -680,6 +791,7 @@ const SimulationObject::ViewParameters &
 }
 
 void EngineSimApplication::loadScript() {
+    DebugTrace::Log("script", "loadScript begin");
     Engine *engine = nullptr;
     Vehicle *vehicle = nullptr;
     Transmission *transmission = nullptr;
@@ -688,6 +800,7 @@ void EngineSimApplication::loadScript() {
     es_script::Compiler compiler;
     compiler.initialize();
     const std::string scriptPath = m_assetPath + "/assets/main.mr";
+    DebugTrace::Log("script", "active script path=%s", scriptPath.c_str());
     const bool compiled = compiler.compile(scriptPath.c_str());
     if (compiled) {
         const es_script::Compiler::Output output = compiler.execute();
@@ -730,6 +843,7 @@ void EngineSimApplication::loadScript() {
 
     loadEngine(engine, vehicle, transmission);
     refreshUserInterface();
+    DebugTrace::Log("script", "loadScript complete");
 }
 
 void EngineSimApplication::processEngineInput() {
@@ -743,8 +857,51 @@ void EngineSimApplication::processEngineInput() {
     const int mouseWheel = m_engine.GetMouseWheel();
     const int mouseWheelDelta = mouseWheel - m_lastMouseWheel;
     m_lastMouseWheel = mouseWheel;
+    if (mouseWheelDelta != 0) {
+        DebugTrace::Log("input", "mouse wheel delta=%d", mouseWheelDelta);
+    }
+
+    struct KeyTrace {
+        ysKey::Code code;
+        const char *name;
+    };
+    static const std::array<KeyTrace, 17> tracedKeys = {{
+        {ysKey::Code::A, "A"},
+        {ysKey::Code::S, "S"},
+        {ysKey::Code::D, "D"},
+        {ysKey::Code::H, "H"},
+        {ysKey::Code::G, "G"},
+        {ysKey::Code::F, "F"},
+        {ysKey::Code::I, "I"},
+        {ysKey::Code::Up, "Up"},
+        {ysKey::Code::Down, "Down"},
+        {ysKey::Code::Z, "Z"},
+        {ysKey::Code::X, "X"},
+        {ysKey::Code::C, "C"},
+        {ysKey::Code::V, "V"},
+        {ysKey::Code::B, "B"},
+        {ysKey::Code::N, "N"},
+        {ysKey::Code::M, "M"},
+        {ysKey::Code::Space, "Space"}
+    }};
+    static std::array<bool, tracedKeys.size()> previousStates = {};
+    int dispatchDepthProxy = 0;
+    for (size_t i = 0; i < tracedKeys.size(); ++i) {
+        const bool down = m_engine.IsKeyDown(tracedKeys[i].code);
+        if (down != previousStates[i]) {
+            DebugTrace::Log("input", "key_%s %s", tracedKeys[i].name, down ? "down" : "up");
+            previousStates[i] = down;
+            ++dispatchDepthProxy;
+        }
+    }
+    DebugTrace::Log("input", "input_dispatch_queue_depth_proxy=%d", dispatchDepthProxy);
 
     bool fineControlInUse = false;
+    auto logWheelBinding = [&](const char *bindingName) {
+        if (mouseWheelDelta != 0) {
+            DebugTrace::Log("input", "mouse wheel routed binding=%s delta=%d", bindingName, mouseWheelDelta);
+        }
+    };
     if (m_engine.IsKeyDown(ysKey::Code::Z)) {
         const double rate = fineControlMode
             ? 0.001
@@ -755,6 +912,7 @@ void EngineSimApplication::processEngineInput() {
 
         m_simulator->synthesizer().setAudioParameters(audioParams);
         fineControlInUse = true;
+        logWheelBinding("volume");
 
         m_infoCluster->setLogMessage("[Z] - Set volume to " + std::to_string(audioParams.volume));
     }
@@ -768,6 +926,7 @@ void EngineSimApplication::processEngineInput() {
 
         m_simulator->synthesizer().setAudioParameters(audioParams);
         fineControlInUse = true;
+        logWheelBinding("convolution");
 
         m_infoCluster->setLogMessage("[X] - Set convolution level to " + std::to_string(audioParams.convolution));
     }
@@ -781,6 +940,7 @@ void EngineSimApplication::processEngineInput() {
 
         m_simulator->synthesizer().setAudioParameters(audioParams);
         fineControlInUse = true;
+        logWheelBinding("high_frequency_gain");
 
         m_infoCluster->setLogMessage("[C] - Set high freq. gain to " + std::to_string(audioParams.dF_F_mix));
     }
@@ -794,6 +954,7 @@ void EngineSimApplication::processEngineInput() {
 
         m_simulator->synthesizer().setAudioParameters(audioParams);
         fineControlInUse = true;
+        logWheelBinding("low_frequency_noise");
 
         m_infoCluster->setLogMessage("[V] - Set low freq. noise to " + std::to_string(audioParams.airNoise));
     }
@@ -807,6 +968,7 @@ void EngineSimApplication::processEngineInput() {
 
         m_simulator->synthesizer().setAudioParameters(audioParams);
         fineControlInUse = true;
+        logWheelBinding("high_frequency_noise");
 
         m_infoCluster->setLogMessage("[B] - Set high freq. noise to " + std::to_string(audioParams.inputSampleNoise));
     }
@@ -821,6 +983,7 @@ void EngineSimApplication::processEngineInput() {
 
         m_simulator->setSimulationFrequency(newSimulationFrequency);
         fineControlInUse = true;
+        logWheelBinding("simulation_frequency");
 
         m_infoCluster->setLogMessage("[N] - Set simulation freq to " + std::to_string(m_simulator->getSimulationFrequency()));
     }
@@ -836,6 +999,7 @@ void EngineSimApplication::processEngineInput() {
 
         m_infoCluster->setLogMessage("[G] - Set dyno speed to " + std::to_string(units::toRpm(m_dynoSpeed)));
         fineControlInUse = true;
+        logWheelBinding("dyno_speed");
     }
 
     const double prevTargetThrottle = m_targetSpeedSetting;
@@ -854,6 +1018,7 @@ void EngineSimApplication::processEngineInput() {
     }
     else if (fineControlMode && !fineControlInUse) {
         m_targetSpeedSetting = clamp(m_targetSpeedSetting + mouseWheelDelta * 0.0001);
+        logWheelBinding("throttle_fine_adjust");
     }
 
     if (prevTargetThrottle != m_targetSpeedSetting) {
