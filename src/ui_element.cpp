@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <chrono>
+#include <cmath>
 #include <typeinfo>
 #include <unordered_map>
 
@@ -24,6 +25,12 @@ bool boundsChanged(const Bounds &a, const Bounds &b) {
         || a.m0.y != b.m0.y
         || a.m1.x != b.m1.x
         || a.m1.y != b.m1.y;
+}
+
+bool pointsEqual(const Point &a, const Point &b) {
+    constexpr float PositionEpsilon = 1.0e-4f;
+    return std::fabs(a.x - b.x) <= PositionEpsilon
+        && std::fabs(a.y - b.y) <= PositionEpsilon;
 }
 
 bool isOffscreen(const Bounds &b, int screenWidth, int screenHeight) {
@@ -206,7 +213,9 @@ Point UiElement::getWorldPosition() const {
 
 void UiElement::setLocalPosition(const Point &p, const Point &ref) {
     const Point current = m_bounds.getPosition(ref) + m_localPosition;
-    m_localPosition += (p - current);
+    const Point nextPosition = m_localPosition + (p - current);
+    if (pointsEqual(nextPosition, m_localPosition)) return;
+    m_localPosition = nextPosition;
     DebugTrace::Log(
         "ui",
         "widget invalidation reason=LOCAL_POSITION id=%p name=%s local_pos=(%.2f,%.2f)",
@@ -217,6 +226,7 @@ void UiElement::setLocalPosition(const Point &p, const Point &ref) {
 }
 
 void UiElement::setLocalPosition(const Point &p) {
+    if (pointsEqual(p, m_localPosition)) return;
     m_localPosition = p;
     DebugTrace::Log(
         "ui",
@@ -240,6 +250,8 @@ void UiElement::setVisible(bool visible) {
 
 void UiElement::bringToFront(UiElement *element) {
     assert(element->m_parent == this);
+    if (m_children.empty()) return;
+    if (m_children.back() == element) return;
 
     m_children.erase(m_children.begin() + element->m_index);
     m_children.push_back(element);
@@ -258,11 +270,17 @@ void UiElement::bringToFront(UiElement *element) {
 }
 
 void UiElement::activate() {
+    bool zOrderChanged = false;
     if (m_parent != nullptr) {
-        m_parent->bringToFront(this);
+        const UiElement *currentFront = m_parent->getChild(m_parent->getChildCount() - 1);
+        if (currentFront != this) {
+            m_parent->bringToFront(this);
+            zOrderChanged = true;
+        }
         m_parent->activate();
     }
 
+    if (!zOrderChanged) return;
     DebugTrace::Log(
         "ui",
         "widget invalidation reason=ACTIVATE id=%p name=%s",
