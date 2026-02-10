@@ -7,6 +7,7 @@ class DebugTrace {
 public:
     static bool InitializeFromArguments(int argc, char **argv);
     static void Shutdown();
+    static void RequestDump(const char *reason);
 
     static bool IsEnabled();
     static std::string SessionDirectory();

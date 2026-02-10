@@ -23,6 +23,7 @@ class UiElement {
 
         virtual void update(float dt);
         virtual void render();
+        virtual const char *getDebugName() const;
 
         virtual void signal(UiElement *element, Event event);
         virtual void onMouseDown(const Point &mouseLocal);
@@ -53,16 +54,17 @@ class UiElement {
         Point getWorldPosition() const;
 
         Point getLocalPosition() const { return m_localPosition; }
-        void setLocalPosition(const Point &p) { m_localPosition = p; }
+        void setLocalPosition(const Point &p);
         void setLocalPosition(const Point &p, const Point &ref);
 
         Point worldToLocal(const Point &wp) const { return wp - getWorldPosition(); }
         Point localToWorld(const Point &lp) const { return lp + getWorldPosition(); }
 
-        void setVisible(bool visible) { m_visible = visible; }
+        void setVisible(bool visible);
         bool isVisible() const { return m_visible; }
 
         size_t getChildCount() const { return m_children.size(); }
+        UiElement *getChild(size_t index) const { return (index < m_children.size()) ? m_children[index] : nullptr; }
 
         void bringToFront(UiElement *element);
         void activate();

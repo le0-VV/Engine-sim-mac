@@ -1,6 +1,7 @@
 #include "../include/oscilloscope_cluster.h"
 
 #include "../include/engine_sim_application.h"
+#include "../include/debug_trace.h"
 
 #include <sstream>
 
@@ -182,6 +183,26 @@ void OscilloscopeCluster::destroy() {
 }
 
 void OscilloscopeCluster::signal(UiElement *element, Event event) {
+    auto scopeName = [&](UiElement *scope) -> const char * {
+        if (scope == m_audioWaveformScope) return "audio_waveform";
+        if (scope == m_torqueScope) return "torque";
+        if (scope == m_powerScope) return "power";
+        if (scope == m_totalExhaustFlowScope) return "total_exhaust_flow";
+        if (scope == m_intakeFlowScope) return "intake_flow";
+        if (scope == m_exhaustFlowScope) return "exhaust_flow";
+        if (scope == m_intakeValveLiftScope) return "intake_valve_lift";
+        if (scope == m_exhaustValveLiftScope) return "exhaust_valve_lift";
+        if (scope == m_cylinderPressureScope) return "cylinder_pressure";
+        if (scope == m_sparkAdvanceScope) return "spark_advance";
+        if (scope == m_cylinderMoleculesScope) return "cylinder_molecules";
+        if (scope == m_pvScope) return "pv";
+        return "unknown";
+    };
+
+    UiElement *previousFocus0 = m_currentFocusScopes[0];
+    UiElement *previousFocus1 = m_currentFocusScopes[1];
+    UiElement *previousFocus2 = m_currentFocusScopes[2];
+
     if (event == Event::Clicked) {
         if (element == m_audioWaveformScope) {
             m_currentFocusScopes[0] = m_audioWaveformScope;
@@ -225,6 +246,18 @@ void OscilloscopeCluster::signal(UiElement *element, Event event) {
         else if (element == m_sparkAdvanceScope) {
             m_currentFocusScopes[0] = m_sparkAdvanceScope;
             m_currentFocusScopes[1] = nullptr;
+        }
+
+        if (previousFocus0 != m_currentFocusScopes[0]
+            || previousFocus1 != m_currentFocusScopes[1]
+            || previousFocus2 != m_currentFocusScopes[2]) {
+            DebugTrace::Log(
+                "ui",
+                "panel/tab transition source=%s focus=[%s,%s,%s]",
+                scopeName(element),
+                scopeName(m_currentFocusScopes[0]),
+                scopeName(m_currentFocusScopes[1]),
+                scopeName(m_currentFocusScopes[2]));
         }
     }
 }

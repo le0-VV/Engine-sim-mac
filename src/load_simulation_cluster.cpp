@@ -2,10 +2,12 @@
 
 #include "../include/engine_sim_application.h"
 #include "../include/ui_utilities.h"
+#include "../include/debug_trace.h"
 
 #include <sstream>
 #include <iomanip>
 #include <climits>
+#include <chrono>
 
 LoadSimulationCluster::LoadSimulationCluster() {
     m_torqueGauge = nullptr;
@@ -306,6 +308,23 @@ void LoadSimulationCluster::updateHpAndTorque(float dt) {
         if (m_filteredHorsepower > m_peakHorsepower) {
             m_peakHorsepower = std::fmax(m_peakHorsepower, m_filteredHorsepower);
             m_peakHorsepowerRpm = m_simulator->getEngine()->getRpm();
+        }
+
+        static auto s_nextGaugeLog = std::chrono::steady_clock::now();
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= s_nextGaugeLog) {
+            const double rpm = m_simulator->getEngine()->getRpm();
+            const double dynoRpm = units::toRpm(std::abs(m_simulator->m_dyno.m_rotationSpeed));
+            DebugTrace::Log(
+                "ui",
+                "gauges rpm=%.2f dyno_rpm=%.2f torque=%.2f power=%.2f torque_peak=%.2f power_peak=%.2f",
+                rpm,
+                dynoRpm,
+                m_filteredTorque,
+                m_filteredHorsepower,
+                m_peakTorque,
+                m_peakHorsepower);
+            s_nextGaugeLog = now + std::chrono::seconds(1);
         }
     }
 }

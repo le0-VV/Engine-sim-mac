@@ -1,8 +1,38 @@
 #include "../include/ui_element.h"
 
 #include "../include/engine_sim_application.h"
+#include "../include/debug_trace.h"
 
 #include <assert.h>
+#include <chrono>
+#include <typeinfo>
+#include <unordered_map>
+
+namespace {
+struct WidgetTraceState {
+    Bounds bounds;
+    bool visible = true;
+    bool culled = false;
+    int z = -1;
+    bool initialized = false;
+};
+
+std::unordered_map<const UiElement *, WidgetTraceState> g_widgetState;
+
+bool boundsChanged(const Bounds &a, const Bounds &b) {
+    return a.m0.x != b.m0.x
+        || a.m0.y != b.m0.y
+        || a.m1.x != b.m1.x
+        || a.m1.y != b.m1.y;
+}
+
+bool isOffscreen(const Bounds &b, int screenWidth, int screenHeight) {
+    if (screenWidth <= 0 || screenHeight <= 0) return false;
+    if (b.right() < 0 || b.left() > screenWidth) return true;
+    if (b.bottom() < 0 || b.top() > screenHeight) return true;
+    return false;
+}
+} /* namespace */
 
 UiElement::UiElement() {
     m_app = nullptr;
@@ -42,9 +72,79 @@ void UiElement::update(float dt) {
 }
 
 void UiElement::render() {
+    const int screenW = (m_app != nullptr) ? m_app->getScreenWidth() : 0;
+    const int screenH = (m_app != nullptr) ? m_app->getScreenHeight() : 0;
     for (UiElement *child : m_children) {
-        if (child->isVisible()) child->render();
+        const Bounds renderBounds = child->unitsToPixels(child->getRenderBounds(child->m_bounds));
+        WidgetTraceState &state = g_widgetState[child];
+        if (!state.initialized || boundsChanged(state.bounds, renderBounds)) {
+            DebugTrace::Log(
+                "ui",
+                "widget invalidation reason=BOUNDS_CHANGED id=%p name=%s bounds=(%.2f,%.2f,%.2f,%.2f)",
+                child,
+                child->getDebugName(),
+                renderBounds.left(),
+                renderBounds.bottom(),
+                renderBounds.width(),
+                renderBounds.height());
+            state.bounds = renderBounds;
+            state.initialized = true;
+        }
+
+        const bool visible = child->isVisible();
+        const bool culledOffscreen = isOffscreen(renderBounds, screenW, screenH);
+        const bool shouldDraw = visible && !culledOffscreen;
+        if (!state.initialized
+            || state.visible != visible
+            || state.culled != culledOffscreen
+            || state.z != child->m_index) {
+            DebugTrace::Log(
+                "ui",
+                "widget visibility id=%p name=%s visible=%d culled=%d reason=%s z=%d layer=%d bounds=(%.2f,%.2f,%.2f,%.2f)",
+                child,
+                child->getDebugName(),
+                visible ? 1 : 0,
+                shouldDraw ? 0 : 1,
+                (!visible) ? "HIDDEN" : (culledOffscreen ? "OFFSCREEN" : "VISIBLE"),
+                child->m_index,
+                0x11,
+                renderBounds.left(),
+                renderBounds.bottom(),
+                renderBounds.width(),
+                renderBounds.height());
+            state.visible = visible;
+            state.culled = culledOffscreen;
+            state.z = child->m_index;
+        }
+
+        if (!shouldDraw) {
+            if (visible && culledOffscreen) {
+                DebugTrace::Log(
+                    "ui",
+                    "dead_hidden_widget_draw_attempt id=%p name=%s visible=%d culled=%d",
+                    child,
+                    child->getDebugName(),
+                    visible ? 1 : 0,
+                    culledOffscreen ? 1 : 0);
+            }
+            continue;
+        }
+
+        const auto t0 = std::chrono::steady_clock::now();
+        DebugTrace::Log("ui", "widget draw begin id=%p name=%s z=%d", child, child->getDebugName(), child->m_index);
+        child->render();
+        const auto t1 = std::chrono::steady_clock::now();
+        DebugTrace::Log(
+            "ui",
+            "widget draw end id=%p name=%s duration_us=%lld",
+            child,
+            child->getDebugName(),
+            static_cast<long long>(std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count()));
     }
+}
+
+const char *UiElement::getDebugName() const {
+    return typeid(*this).name();
 }
 
 void UiElement::signal(UiElement *element, Event event) {
@@ -107,6 +207,35 @@ Point UiElement::getWorldPosition() const {
 void UiElement::setLocalPosition(const Point &p, const Point &ref) {
     const Point current = m_bounds.getPosition(ref) + m_localPosition;
     m_localPosition += (p - current);
+    DebugTrace::Log(
+        "ui",
+        "widget invalidation reason=LOCAL_POSITION id=%p name=%s local_pos=(%.2f,%.2f)",
+        this,
+        getDebugName(),
+        m_localPosition.x,
+        m_localPosition.y);
+}
+
+void UiElement::setLocalPosition(const Point &p) {
+    m_localPosition = p;
+    DebugTrace::Log(
+        "ui",
+        "widget invalidation reason=LOCAL_POSITION id=%p name=%s local_pos=(%.2f,%.2f)",
+        this,
+        getDebugName(),
+        m_localPosition.x,
+        m_localPosition.y);
+}
+
+void UiElement::setVisible(bool visible) {
+    if (m_visible == visible) return;
+    m_visible = visible;
+    DebugTrace::Log(
+        "ui",
+        "widget invalidation reason=VISIBILITY id=%p name=%s visible=%d",
+        this,
+        getDebugName(),
+        m_visible ? 1 : 0);
 }
 
 void UiElement::bringToFront(UiElement *element) {
@@ -119,6 +248,13 @@ void UiElement::bringToFront(UiElement *element) {
     for (UiElement *element : m_children) {
         element->m_index = i++;
     }
+
+    DebugTrace::Log(
+        "ui",
+        "widget invalidation reason=Z_ORDER id=%p name=%s new_z=%d",
+        element,
+        element->getDebugName(),
+        element->m_index);
 }
 
 void UiElement::activate() {
@@ -126,6 +262,12 @@ void UiElement::activate() {
         m_parent->bringToFront(this);
         m_parent->activate();
     }
+
+    DebugTrace::Log(
+        "ui",
+        "widget invalidation reason=ACTIVATE id=%p name=%s",
+        this,
+        getDebugName());
 }
 
 void UiElement::signal(Event event) {

@@ -5,9 +5,22 @@
 #include "../include/debug_trace.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cmath>
 #include <cstring>
+
+namespace {
+std::atomic<unsigned long long> g_lock0ContentionCount{0};
+std::atomic<unsigned long long> g_inputLockContentionCount{0};
+
+void logLockWait(const char *lockName, long long waitUs) {
+    if (waitUs <= 0) return;
+    if (waitUs >= 200) {
+        DebugTrace::Log("audio_thread", "lock_wait lock=%s wait_us=%lld", lockName, waitUs);
+    }
+}
+} /* namespace */
 
 #undef min
 #undef max
@@ -172,7 +185,12 @@ int Synthesizer::readAudioOutput(int samples, int16_t *buffer) {
         return 0;
     }
 
+    const auto lockStart = std::chrono::steady_clock::now();
     std::lock_guard<std::mutex> lock(m_lock0);
+    const auto lockEnd = std::chrono::steady_clock::now();
+    const auto lockWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(lockEnd - lockStart).count();
+    if (lockWaitUs > 0) g_lock0ContentionCount.fetch_add(1, std::memory_order_relaxed);
+    logLockWait("m_lock0(readAudioOutput)", static_cast<long long>(lockWaitUs));
 
     const int newDataLength = m_audioBuffer.size();
     if (newDataLength >= samples) {
@@ -193,7 +211,12 @@ int Synthesizer::readAudioOutput(int samples, int16_t *buffer) {
 
 void Synthesizer::waitProcessed() {
     {
+        const auto lockStart = std::chrono::steady_clock::now();
         std::unique_lock<std::mutex> lk(m_lock0);
+        const auto lockEnd = std::chrono::steady_clock::now();
+        const auto lockWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(lockEnd - lockStart).count();
+        if (lockWaitUs > 0) g_lock0ContentionCount.fetch_add(1, std::memory_order_relaxed);
+        logLockWait("m_lock0(waitProcessed)", static_cast<long long>(lockWaitUs));
         m_cv0.wait(lk, [this] { return m_processed; });
     }
 }
@@ -241,7 +264,12 @@ void Synthesizer::writeInput(const double *data) {
 }
 
 void Synthesizer::endInputBlock() {
+    const auto lockStart = std::chrono::steady_clock::now();
     std::unique_lock<std::mutex> lk(m_inputLock); 
+    const auto lockEnd = std::chrono::steady_clock::now();
+    const auto lockWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(lockEnd - lockStart).count();
+    if (lockWaitUs > 0) g_inputLockContentionCount.fetch_add(1, std::memory_order_relaxed);
+    logLockWait("m_inputLock(endInputBlock)", static_cast<long long>(lockWaitUs));
 
     for (int i = 0; i < m_inputChannelCount; ++i) {
         m_inputChannels[i].data.removeBeginning(m_inputSamplesRead);
@@ -300,6 +328,16 @@ void Synthesizer::audioRenderingThread() {
                 avgCycleMicros,
                 underrunCount,
                 overrunCount);
+            DebugTrace::Log(
+                "audio_thread",
+                "mailbox_queue_lengths input_ring=%d audio_ring=%d",
+                (m_inputChannelCount > 0 && m_inputChannels != nullptr) ? static_cast<int>(m_inputChannels[0].data.size()) : 0,
+                static_cast<int>(m_audioBuffer.size()));
+            DebugTrace::Log(
+                "audio_thread",
+                "lock_contention_counters lock0=%llu input_lock=%llu",
+                (unsigned long long)g_lock0ContentionCount.exchange(0, std::memory_order_relaxed),
+                (unsigned long long)g_inputLockContentionCount.exchange(0, std::memory_order_relaxed));
             cyclesSinceHeartbeat = 0;
             totalCycleMicros = 0;
             underrunCount = 0;
@@ -313,7 +351,14 @@ void Synthesizer::audioRenderingThread() {
 
 #undef max
 void Synthesizer::renderAudio() {
+    const auto lockStart = std::chrono::steady_clock::now();
     std::unique_lock<std::mutex> lk0(m_lock0);
+    const auto lockEnd = std::chrono::steady_clock::now();
+    const auto lockWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(lockEnd - lockStart).count();
+    if (lockWaitUs > 0) g_lock0ContentionCount.fetch_add(1, std::memory_order_relaxed);
+    logLockWait("m_lock0(renderAudio)", static_cast<long long>(lockWaitUs));
+
+    const auto sleepStart = std::chrono::steady_clock::now();
 
     m_cv0.wait(lk0, [this] {
         const bool hasInputChannel = m_inputChannelCount > 0 && m_inputChannels != nullptr;
@@ -323,6 +368,15 @@ void Synthesizer::renderAudio() {
             && m_audioBuffer.size() < 2000;
         return !m_run || (inputAvailable && !m_processed);
     });
+    const auto wakeTs = std::chrono::steady_clock::now();
+    const auto sleepUs = std::chrono::duration_cast<std::chrono::microseconds>(wakeTs - sleepStart).count();
+    if (sleepUs >= 500) {
+        DebugTrace::Log(
+            "audio_thread",
+            "thread_state transition=wake reason=%s slept_us=%lld",
+            m_run ? "input_or_space" : "shutdown",
+            static_cast<long long>(sleepUs));
+    }
 
     if (!m_run) {
         return;
@@ -387,7 +441,12 @@ void Synthesizer::setInputSampleRate(double sampleRate) {
     }
 
     if (sampleRate != m_inputSampleRate) {
+        const auto lockStart = std::chrono::steady_clock::now();
         std::lock_guard<std::mutex> lock(m_lock0);
+        const auto lockEnd = std::chrono::steady_clock::now();
+        const auto lockWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(lockEnd - lockStart).count();
+        if (lockWaitUs > 0) g_lock0ContentionCount.fetch_add(1, std::memory_order_relaxed);
+        logLockWait("m_lock0(setInputSampleRate)", static_cast<long long>(lockWaitUs));
         m_inputSampleRate = sampleRate;
     }
 }
@@ -449,16 +508,31 @@ int16_t Synthesizer::renderAudio(int inputSample) {
 }
 
 double Synthesizer::getLevelerGain() {
+    const auto lockStart = std::chrono::steady_clock::now();
     std::lock_guard<std::mutex> lock(m_lock0);
+    const auto lockEnd = std::chrono::steady_clock::now();
+    const auto lockWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(lockEnd - lockStart).count();
+    if (lockWaitUs > 0) g_lock0ContentionCount.fetch_add(1, std::memory_order_relaxed);
+    logLockWait("m_lock0(getLevelerGain)", static_cast<long long>(lockWaitUs));
     return m_levelingFilter.getAttenuation();
 }
 
 Synthesizer::AudioParameters Synthesizer::getAudioParameters() {
+    const auto lockStart = std::chrono::steady_clock::now();
     std::lock_guard<std::mutex> lock(m_lock0);
+    const auto lockEnd = std::chrono::steady_clock::now();
+    const auto lockWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(lockEnd - lockStart).count();
+    if (lockWaitUs > 0) g_lock0ContentionCount.fetch_add(1, std::memory_order_relaxed);
+    logLockWait("m_lock0(getAudioParameters)", static_cast<long long>(lockWaitUs));
     return m_audioParameters;
 }
 
 void Synthesizer::setAudioParameters(const AudioParameters &params) {
+    const auto lockStart = std::chrono::steady_clock::now();
     std::lock_guard<std::mutex> lock(m_lock0);
+    const auto lockEnd = std::chrono::steady_clock::now();
+    const auto lockWaitUs = std::chrono::duration_cast<std::chrono::microseconds>(lockEnd - lockStart).count();
+    if (lockWaitUs > 0) g_lock0ContentionCount.fetch_add(1, std::memory_order_relaxed);
+    logLockWait("m_lock0(setAudioParameters)", static_cast<long long>(lockWaitUs));
     m_audioParameters = params;
 }

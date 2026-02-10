@@ -6,6 +6,7 @@
 
 namespace {
 void EngineSimSignalHandler(int signalCode) {
+    DebugTrace::RequestDump("signal");
     DebugTrace::Log("main", "signal handler triggered code=%d", signalCode);
     std::_Exit(128 + signalCode);
 }
@@ -23,6 +24,9 @@ int main(int argc, char **argv) {
     std::signal(SIGABRT, EngineSimSignalHandler);
     std::signal(SIGSEGV, EngineSimSignalHandler);
     std::signal(SIGBUS, EngineSimSignalHandler);
+#if defined(SIGUSR1)
+    std::signal(SIGUSR1, EngineSimSignalHandler);
+#endif
 
     EngineSimApplication application;
 #if defined(__APPLE__)
