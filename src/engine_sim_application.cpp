@@ -846,9 +846,6 @@ void EngineSimApplication::run() {
         else if (frameCpuMs > 100.0) {
             DebugTrace::Log("mainloop", "stall_warning threshold=100ms cpu_ms=%.3f", frameCpuMs);
         }
-        else if (frameCpuMs > 33.0) {
-            DebugTrace::Log("mainloop", "stall_warning threshold=33ms cpu_ms=%.3f", frameCpuMs);
-        }
         if (frameCpuMs > 1000.0) {
             DebugTrace::Log("mainloop", "watchdog_warning main_thread_unresponsive_window cpu_ms=%.3f", frameCpuMs);
         }
