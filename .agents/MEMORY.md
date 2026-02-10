@@ -2,3 +2,4 @@
 - Metal migration scope (current round): achieve full functional parity Metal graphics backend for macOS; not an MVP-only target.
 - For now, keep OpenGL/Vulkan sources in repo but make macOS runtime/build use Metal only.
 - During this migration, avoid making any git commits; temporary non-runnable intermediate code is acceptable as long as final state builds/runs on macOS Tahoe.
+- User decision (2026-02-10): prioritize completing the port first; defer memory optimization and return to it later.
