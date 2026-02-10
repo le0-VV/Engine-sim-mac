@@ -34,3 +34,8 @@
 - DirectX Shader Compiler (DXC): https://github.com/microsoft/DirectXShaderCompiler
 - glslang (GLSL/HLSL -> SPIR-V): https://github.com/KhronosGroup/glslang
 - SPIRV-Cross (SPIR-V -> MSL): https://github.com/KhronosGroup/SPIRV-Cross
+- Apple HIG: App icons: https://developer.apple.com/design/human-interface-guidelines/app-icons
+- Icon Composer overview (multi-layer icons, rounder enclosure/grid updates): https://developer.apple.com/icon-composer/
+- WWDC25: Create icons with Icon Composer (1024 canvas for iPhone/iPad/Mac, rounded-rectangle shape, layer/export guidance): https://developer.apple.com/videos/play/wwdc2025/361/
+- WWDC25: Say hello to the new look of app icons: https://developer.apple.com/videos/play/wwdc2025/220/
+- App Store Connect help (app icon in Xcode asset catalog): https://developer.apple.com/help/app-store-connect/manage-app-information/add-an-app-icon
