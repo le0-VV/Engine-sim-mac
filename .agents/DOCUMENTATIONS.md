@@ -1,4 +1,6 @@
 - C++17 reference: https://en.cppreference.com/w/cpp/17.html
+- C++ `std::fmax`/`std::fmin`/`std::abs` (`<cmath>`): https://en.cppreference.com/w/cpp/header/cmath
+- C++ `std::clamp` (`<algorithm>`): https://en.cppreference.com/w/cpp/algorithm/clamp
 - CMake documentation: https://cmake.org/documentation/
 - OpenGL specifications registry: https://registry.khronos.org/opengl
 - SDL2 documentation wiki: https://wiki.libsdl.org/SDL2
