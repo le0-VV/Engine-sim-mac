@@ -1,6 +1,7 @@
 # **YOU MUST:**
 
 - **DO NOT, UNDER ANY CIRCUMSTANCES, UNLESS EXPLICITLY INSTRUCTED BY THE USER**, modify this file or ./.agents/INSTRUCTIONS.md
+- When possible, use sandbox-provided file editing tools for writes; avoid heredoc-based direct-write commands unless the user explicitly requests them.
 - Follow the instructions of ./.agents/INSTRUCTIONS.md
 - Find up-to-date documentations for any library, framework and programming languages used in this project, and record their source URLs in ./.agents/DOCUMENTATIONS.md
 - While you write code, **CONSTANTLY** refer to sources you recorded in ./.agents/DOCUMENTATIONS.md to make sure you're writing accurate, working and standard-complying code.
