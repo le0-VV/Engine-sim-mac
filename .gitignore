@@ -15,6 +15,7 @@ compile_commands.json
 
 # log artifacts
 *.log
+dumps/
 
 # Agentic files
 .agents/TODO.md

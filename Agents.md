@@ -9,7 +9,7 @@
 - When .agents/DOCUMENTATIONS.md is updated, commit ONLY .agents/DOCUMENTATIONS.md with commit message: "docs(agent docs): agent added more doc sources"
 - When .agents/MEMORY.md is updated, commit ONLY .agents/MEMORY.md with commit message: "docs(agent memory): update memory"
 - If you have **ANY** questions or concerns, **IMMEDIATELY** clarify with the user.
-- Before making any changes to the codebase, THOROUGHLY plan out your work, write down every step you're going to take in ./.agents/TODO.md, and follow it during your work.
+- Before making **ANY** changes to the codebase, THOROUGHLY plan out your work, write down every step you're going to take in ./.agents/TODO.md, and follow it during your work.
 - Tick off every item you completed in ./.agents/TODO.md.
 - **Only** stop working when you finished everything listed in /.agents/TODO.md **OR** you encountered an interruption to your work that **REQUIRES** user intervention.
 - If everything is ticked off in ./.agents/TODO.md and you need to plan for a new round of work, clear out ./.agents/TODO.md and write down your new list of steps

@@ -1,0 +1,1 @@
+- [ ] Memory optimization pass (deferred): investigate and reduce remaining slow runtime memory creep after Metal port completion.
