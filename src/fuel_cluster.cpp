@@ -4,6 +4,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <cmath>
 
 FuelCluster::FuelCluster() {
     m_engine = nullptr;
@@ -63,10 +64,12 @@ void FuelCluster::render() {
     const Bounds costUSD = grid.get(bodyBounds, 0, 4);
     drawText(ss.str(), costUSD, 16.0f, Bounds::lm);
 
-    const double travelledDistance = (m_simulator->getVehicle() != nullptr)
+    const double travelledDistance = (m_simulator != nullptr && m_simulator->getVehicle() != nullptr)
         ? m_simulator->getVehicle()->getTravelledDistance()
         : 0.0;
-    const double mpg = units::convert(travelledDistance, units::mile) / fuelConsumed_gallons;
+    const double mpg = (fuelConsumed_gallons > 1E-9)
+        ? units::convert(travelledDistance, units::mile) / fuelConsumed_gallons
+        : 0.0;
 
     ss = std::stringstream();
     ss << std::setprecision(2) << std::fixed;
@@ -75,7 +78,7 @@ void FuelCluster::render() {
     const Bounds mpgBounds = grid.get(bodyBounds, 0, 6);
     drawText(ss.str(), mpgBounds, 16.0f, Bounds::lm);
 
-    const double lp100km = (travelledDistance != 0)
+    const double lp100km = (std::abs(travelledDistance) > 1E-9)
         ? units::convert(fuelConsumed, units::L)
             / (units::convert(travelledDistance, units::km) / 100.0)
         : 0;

@@ -21,7 +21,9 @@ class LoadSimulationCluster : public UiElement {
         void setSimulator(Simulator *simulator) { m_simulator = simulator; }
 
     private:
-        Transmission *getTransmission() const { return m_simulator->getTransmission(); }
+        Transmission *getTransmission() const {
+            return (m_simulator != nullptr) ? m_simulator->getTransmission() : nullptr;
+        }
 
     protected:
         void drawCurrentGear(const Bounds &bounds);

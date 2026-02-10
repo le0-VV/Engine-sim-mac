@@ -5,6 +5,7 @@
 
 #include "ring_buffer.h"
 
+#include <algorithm>
 #include <cmath>
 
 class DelayFilter : public Filter {
@@ -18,10 +19,12 @@ public:
     }
 
     void initialize(double delay, double audioFrequency) {
-        const int samples = static_cast<int>(std::round(delay * audioFrequency));
-        const int capacity = samples + 32;
+        const double clampedDelay = std::max(0.0, delay);
+        const double clampedFrequency = std::max(0.0, audioFrequency);
+        const int samples = static_cast<int>(std::round(clampedDelay * clampedFrequency));
+        const int capacity = std::max(32, samples + 32);
 
-        m_history.initialize(capacity);
+        m_history.initialize(static_cast<size_t>(capacity));
         m_latencySamples = samples;
     }
 

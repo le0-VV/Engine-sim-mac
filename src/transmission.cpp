@@ -2,7 +2,10 @@
 
 #include "../include/units.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <limits>
 
 Transmission::Transmission() {
     m_gear = -1;
@@ -24,10 +27,20 @@ Transmission::~Transmission() {
 }
 
 void Transmission::initialize(const Parameters &params) {
-    m_gearCount = params.GearCount;
+    delete[] m_gearRatios;
+    m_gearRatios = nullptr;
+
+    m_gearCount = std::max(0, params.GearCount);
     m_maxClutchTorque = params.MaxClutchTorque;
-    m_gearRatios = new double[params.GearCount];
-    memcpy(m_gearRatios, params.GearRatios, sizeof(double) * m_gearCount);
+
+    if (m_gearCount <= 0 || params.GearRatios == nullptr) {
+        m_gearCount = 0;
+        m_gear = -1;
+        return;
+    }
+
+    m_gearRatios = new double[m_gearCount];
+    memcpy(m_gearRatios, params.GearRatios, sizeof(double) * (size_t)m_gearCount);
 }
 
 void Transmission::update(double dt) {
@@ -47,10 +60,19 @@ void Transmission::addToSystem(
     Vehicle *vehicle,
     Engine *engine)
 {
+    if (system == nullptr || rotatingMass == nullptr || vehicle == nullptr || engine == nullptr) {
+        return;
+    }
+
+    Crankshaft *const outputCrankshaft = engine->getOutputCrankshaft();
+    if (outputCrankshaft == nullptr) {
+        return;
+    }
+
     m_rotatingMass = rotatingMass;
     m_vehicle = vehicle;
 
-    m_clutchConstraint.setBody1(&engine->getOutputCrankshaft()->m_body);
+    m_clutchConstraint.setBody1(&outputCrankshaft->m_body);
     m_clutchConstraint.setBody2(m_rotatingMass);
 
     system->addConstraint(&m_clutchConstraint);
@@ -58,14 +80,25 @@ void Transmission::addToSystem(
 
 void Transmission::changeGear(int newGear) {
     if (newGear < -1 || newGear >= m_gearCount) return;
-    else if (newGear != -1) {
+    else if (newGear != -1 && m_vehicle != nullptr && m_rotatingMass != nullptr && m_gearRatios != nullptr) {
         const double m_car = m_vehicle->getMass();
         const double gear_ratio = m_gearRatios[newGear];
         const double diff_ratio = m_vehicle->getDiffRatio();
         const double tire_radius = m_vehicle->getTireRadius();
-        const double f = tire_radius / (diff_ratio * gear_ratio);
+        const double ratioProduct = diff_ratio * gear_ratio;
+        if (std::abs(ratioProduct) <= std::numeric_limits<double>::epsilon() || tire_radius <= 0.0) {
+            m_gear = newGear;
+            return;
+        }
+
+        const double f = tire_radius / ratioProduct;
 
         const double new_I = m_car * f * f;
+        if (new_I <= 0.0) {
+            m_gear = newGear;
+            return;
+        }
+
         const double E_r =
             0.5 * m_rotatingMass->I * m_rotatingMass->v_theta * m_rotatingMass->v_theta;
         const double new_v_theta = m_rotatingMass->v_theta < 0

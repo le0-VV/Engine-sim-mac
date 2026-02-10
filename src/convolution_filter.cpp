@@ -1,7 +1,7 @@
 #include "../include/convolution_filter.h"
 
 #include <assert.h>
-#include <string.h>
+#include <cstring>
 
 ConvolutionFilter::ConvolutionFilter() {
     m_shiftRegister = nullptr;
@@ -17,13 +17,21 @@ ConvolutionFilter::~ConvolutionFilter() {
 }
 
 void ConvolutionFilter::initialize(int samples) {
+    destroy();
+
+    if (samples <= 0) {
+        m_sampleCount = 0;
+        m_shiftOffset = 0;
+        return;
+    }
+
     m_sampleCount = samples;
     m_shiftOffset = 0;
     m_shiftRegister = new float[samples];
     m_impulseResponse = new float[samples];
 
-    memset(m_shiftRegister, 0, sizeof(float) * samples);
-    memset(m_impulseResponse, 0, sizeof(float) * samples);
+    std::memset(m_shiftRegister, 0, sizeof(float) * (size_t)samples);
+    std::memset(m_impulseResponse, 0, sizeof(float) * (size_t)samples);
 }
 
 void ConvolutionFilter::destroy() {
@@ -32,6 +40,8 @@ void ConvolutionFilter::destroy() {
 
     m_shiftRegister = nullptr;
     m_impulseResponse = nullptr;
+    m_shiftOffset = 0;
+    m_sampleCount = 0;
 }
 
 float ConvolutionFilter::f(float sample) {

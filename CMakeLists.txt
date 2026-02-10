@@ -6,6 +6,7 @@ option(DTV "Enable video output" OFF)
 option(PIRANHA_ENABLED "Enable scripting input" ON)
 option(DISCORD_ENABLED "Enable Discord Rich Presence" ON)
 option(BUILD_TESTING "Build tests" OFF)
+option(ENGINE_SIM_ENABLE_SANITIZERS "Enable Address/UndefinedBehavior sanitizers" OFF)
 
 if (DTV)
     add_compile_definitions(ATG_ENGINE_SIM_VIDEO_CAPTURE)
@@ -26,6 +27,20 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "cmake")
 project(engine-sim)
 
 set(CMAKE_CXX_STANDARD 17)
+
+if (ENGINE_SIM_ENABLE_SANITIZERS)
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        add_compile_options(
+            -fsanitize=address,undefined
+            -fno-omit-frame-pointer
+            -fno-optimize-sibling-calls
+            -g
+            -O1)
+        add_link_options(-fsanitize=address,undefined)
+    else()
+        message(WARNING "ENGINE_SIM_ENABLE_SANITIZERS is ON but compiler is not Clang/GNU; sanitizers not enabled.")
+    endif()
+endif()
 
 # ========================================================
 # GTEST

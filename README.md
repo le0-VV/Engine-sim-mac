@@ -61,6 +61,22 @@ The RPM hold feature will hold the engine at a specific RPM and also measure the
 
 Build script coming soon
 
+### Metal shader translation tooling
+
+The repository includes `/Users/leonardw/Projects/Engine-sim-mac/tools/translate_shaders_to_msl.sh` for shader migration experiments:
+
+```bash
+./tools/translate_shaders_to_msl.sh
+```
+
+It generates Metal shader output under `/Users/leonardw/Projects/Engine-sim-mac/build/generated/msl`.
+
+You can run it as part of the build script:
+
+```bash
+./tools/build.sh --metal-shaders
+```
+
 ## (Original project's) Patreon Supporters
 
 This project was made possible by the generous donations of the following individuals!

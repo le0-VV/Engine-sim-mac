@@ -4,6 +4,7 @@
 #include "scs.h"
 
 #include <stdint.h>
+#include <cstring>
 
 class AudioBuffer {
     public:
@@ -18,6 +19,8 @@ class AudioBuffer {
         }
 
         inline double timeDelta(int offset0, int offset1) const {
+            if (m_bufferSize <= 0) return 0;
+
             if (offset1 == offset0) return 0;
             else if (offset1 < offset0) {
                 return offsetToTime((m_bufferSize - offset0) + offset1);
@@ -28,6 +31,8 @@ class AudioBuffer {
         }
 
         inline int offsetDelta(int offset0, int offset1) const {
+            if (m_bufferSize <= 0) return 0;
+
             if (offset1 == offset0) return 0;
             else if (offset1 < offset0) {
                 return (m_bufferSize - offset0) + offset1;
@@ -38,32 +43,40 @@ class AudioBuffer {
         }
 
         inline void writeSample(int16_t sample, int offset, int index = 0) {
+            if (m_samples == nullptr || m_bufferSize <= 0) return;
             m_samples[getBufferIndex(offset, index)] = sample;
         }
 
         inline int16_t readSample(int offset, int index) const {
+            if (m_samples == nullptr || m_bufferSize <= 0) return 0;
             return m_samples[getBufferIndex(offset, index)];
         }
 
         inline void commitBlock(int length) {
+            if (m_bufferSize <= 0) return;
             m_writePointer = getBufferIndex(m_writePointer, length);
         }
 
         inline int getBufferIndex(int offset, int index = 0) const {
+            if (m_bufferSize <= 0) return 0;
             return (((offset + index) % m_bufferSize) + m_bufferSize) % m_bufferSize;
         }
 
         inline void copyBuffer(int16_t *dest, int offset, int length) {
-            const int start = getBufferIndex(offset, 0);
-            const int end = getBufferIndex(offset, length);
-
-            if (start == end) return;
-            else if (start < end) {
-                memcpy(dest, m_samples + start, length * sizeof(int16_t));
+            if (dest == nullptr || m_samples == nullptr || m_bufferSize <= 0 || length <= 0) {
+                return;
             }
-            else {
-                memcpy(dest, m_samples + start, ((size_t)m_bufferSize - start) * sizeof(int16_t));
-                memcpy(dest + m_bufferSize - start, m_samples, end * sizeof(int16_t));
+
+            const int copyLength = (length > m_bufferSize) ? m_bufferSize : length;
+            const int start = getBufferIndex(offset, 0);
+            const int firstSpan = copyLength < (m_bufferSize - start)
+                ? copyLength
+                : m_bufferSize - start;
+            memcpy(dest, m_samples + start, (size_t)firstSpan * sizeof(int16_t));
+
+            const int remaining = copyLength - firstSpan;
+            if (remaining > 0) {
+                memcpy(dest + firstSpan, m_samples, (size_t)remaining * sizeof(int16_t));
             }
         }
 

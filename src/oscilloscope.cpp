@@ -4,6 +4,8 @@
 #include "../include/engine_sim_application.h"
 #include "../include/ui_utilities.h"
 
+#include <cmath>
+
 Oscilloscope::Oscilloscope() {
     m_xMin = m_xMax = 0;
     m_yMin = m_yMax = 0;
@@ -57,6 +59,10 @@ void Oscilloscope::render() {
 }
 
 void Oscilloscope::render(const Bounds &bounds) {
+    if (m_points == nullptr || m_renderBuffer == nullptr || m_bufferSize <= 0 || m_pointCount <= 0) {
+        return;
+    }
+
     for (int i = 0; i < m_pointCount; ++i) {
         const int index = (m_writeIndex - m_pointCount + i + m_bufferSize) % m_bufferSize;
         m_renderBuffer[index] = dataPointToRenderPosition(m_points[index], bounds);
@@ -150,8 +156,15 @@ Point Oscilloscope::dataPointToRenderPosition(
     const float width = bounds.width();
     const float height = bounds.height();
 
-    const float s_x = (float)((p.x - m_xMin) / (m_xMax - m_xMin));
-    const float s_y = (float)((p.y - m_yMin) / (m_yMax - m_yMin));
+    const double xRange = m_xMax - m_xMin;
+    const double yRange = m_yMax - m_yMin;
+
+    const float s_x = (std::abs(xRange) > 1e-9)
+        ? (float)((p.x - m_xMin) / xRange)
+        : 0.5f;
+    const float s_y = (std::abs(yRange) > 1e-9)
+        ? (float)((p.y - m_yMin) / yRange)
+        : 0.5f;
 
     const Point local = { s_x * width, s_y * height };
 
@@ -159,6 +172,10 @@ Point Oscilloscope::dataPointToRenderPosition(
 }
 
 void Oscilloscope::addDataPoint(double x, double y) {
+    if (m_points == nullptr || m_bufferSize <= 0) {
+        return;
+    }
+
     m_points[m_writeIndex] = { x, y };
     m_writeIndex = (m_writeIndex + 1) % m_bufferSize;
     m_pointCount = (m_pointCount >= m_bufferSize)
@@ -184,6 +201,18 @@ void Oscilloscope::addDataPoint(double x, double y) {
 }
 
 void Oscilloscope::setBufferSize(int n) {
+    delete[] m_points;
+    delete[] m_renderBuffer;
+    m_points = nullptr;
+    m_renderBuffer = nullptr;
+
+    if (n <= 0) {
+        m_bufferSize = 0;
+        m_writeIndex = 0;
+        m_pointCount = 0;
+        return;
+    }
+
     m_points = new DataPoint[n];
     m_renderBuffer = new Point[n];
     m_bufferSize = n;

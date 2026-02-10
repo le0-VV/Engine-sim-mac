@@ -1,5 +1,6 @@
 #include "../include/gaussian_filter.h"
 
+#include <algorithm>
 #include <cmath>
 
 GaussianFilter::GaussianFilter() {
@@ -18,10 +19,13 @@ GaussianFilter::~GaussianFilter() {
 }
 
 void GaussianFilter::initialize(double alpha, double radius, int cacheSteps) {
-    m_cacheSteps = cacheSteps;
+    delete[] m_cache;
+    m_cache = nullptr;
 
-    m_alpha = alpha;
-    m_radius = radius;
+    m_cacheSteps = std::max(cacheSteps, 33);
+
+    m_alpha = std::max(alpha, 0.0);
+    m_radius = std::max(radius, 1e-9);
 
     m_exp_s = std::exp(-m_alpha * m_radius * m_radius);
     m_inv_r = 1 / m_radius;
@@ -30,15 +34,19 @@ void GaussianFilter::initialize(double alpha, double radius, int cacheSteps) {
 }
 
 double GaussianFilter::evaluate(double s) const {
+    if (m_cache == nullptr || m_cacheSteps <= 32) {
+        return calculate(s);
+    }
+
     const int actualSteps = m_cacheSteps - 32;
     const double s_sample = actualSteps * std::abs(s) * m_inv_r;
-    const double s0 = std::floor(s_sample);
-    const double s1 = std::ceil(s_sample);
-    const double d = s_sample - s0;
+    const int i0 = std::clamp((int)std::floor(s_sample), 0, actualSteps);
+    const int i1 = std::clamp((int)std::ceil(s_sample), 0, actualSteps);
+    const double d = s_sample - i0;
 
     return
-        (1 - d) * m_cache[(int)s0]
-        + d * m_cache[(int)s1];
+        (1 - d) * m_cache[i0]
+        + d * m_cache[i1];
 }
 
 double GaussianFilter::calculate(double s) const {
@@ -51,6 +59,7 @@ void GaussianFilter::generateCache() {
     const int actualSteps = m_cacheSteps - 32;
     const double step = 1.0 / actualSteps;
 
+    delete[] m_cache;
     m_cache = new double[m_cacheSteps];
     for (int i = 0; i <= actualSteps; ++i) {
         const double s = i * step * m_radius;

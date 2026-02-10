@@ -1,9 +1,10 @@
 #include "../include/function.h"
 
 #include <algorithm>
-#include <string.h>
+#include <cstring>
 #include <assert.h>
 #include <cmath>
+#include <limits>
 
 GaussianFilter *Function::DefaultGaussianFilter = nullptr;
 
@@ -12,7 +13,8 @@ Function::Function() {
     m_capacity = 0;
     m_size = 0;
     m_filterRadius = 0;
-    m_yMin = m_yMax = 0;
+    m_yMin = std::numeric_limits<double>::infinity();
+    m_yMax = -std::numeric_limits<double>::infinity();
     m_inputScale = 1.0;
     m_outputScale = 1.0;
 
@@ -33,6 +35,8 @@ void Function::initialize(int size, double filterRadius, GaussianFilter *filter)
     resize(size);
     m_size = 0;
     m_filterRadius = filterRadius;
+    m_yMin = std::numeric_limits<double>::infinity();
+    m_yMax = -std::numeric_limits<double>::infinity();
 
     m_gaussianFilter = (filter != nullptr)
         ? filter
@@ -40,12 +44,27 @@ void Function::initialize(int size, double filterRadius, GaussianFilter *filter)
 }
 
 void Function::resize(int newCapacity) {
+    if (newCapacity <= 0) {
+        delete[] m_x;
+        delete[] m_y;
+
+        m_x = nullptr;
+        m_y = nullptr;
+        m_capacity = 0;
+        m_size = 0;
+        return;
+    }
+
+    if (m_size > newCapacity) {
+        m_size = newCapacity;
+    }
+
     double *new_x = new double[newCapacity];
     double *new_y = new double[newCapacity];
 
     if (m_size > 0) {
-        memcpy(new_x, m_x, sizeof(double) * m_size);
-        memcpy(new_y, m_y, sizeof(double) * m_size);
+        std::memcpy(new_x, m_x, sizeof(double) * (size_t)m_size);
+        std::memcpy(new_y, m_y, sizeof(double) * (size_t)m_size);
     }
 
     delete[] m_x;
@@ -66,6 +85,8 @@ void Function::destroy() {
 
     m_capacity = 0;
     m_size = 0;
+    m_yMin = std::numeric_limits<double>::infinity();
+    m_yMax = -std::numeric_limits<double>::infinity();
 }
 
 void Function::addSample(double x, double y) {
@@ -73,8 +94,14 @@ void Function::addSample(double x, double y) {
         resize(m_capacity * 2 + 1);
     }
 
-    m_yMin = std::fmin(m_yMin, y);
-    m_yMax = std::fmax(m_yMax, y);
+    if (m_size == 0) {
+        m_yMin = y;
+        m_yMax = y;
+    }
+    else {
+        m_yMin = std::fmin(m_yMin, y);
+        m_yMax = std::fmax(m_yMax, y);
+    }
 
     const int closest = closestSample(x);
     if (closest == -1) {
@@ -108,6 +135,7 @@ double Function::sampleTriangle(double x) const {
     if (m_size == 0) return 0;
     else if (x >= m_x[m_size - 1]) return m_y[m_size - 1] * m_outputScale;
     else if (x <= m_x[0]) return m_y[0] * m_outputScale;
+    else if (m_filterRadius <= 0) return m_y[closest] * m_outputScale;
 
     double sum = 0;
     double totalWeight = 0;
@@ -137,13 +165,17 @@ double Function::sampleTriangle(double x) const {
 double Function::sampleGaussian(double x) const {
     x *= m_inputScale;
     const int closest = closestSample(x);
-    const double filterRadius = m_filterRadius * m_gaussianFilter->getRadius();
 
     double sum = 0;
     double totalWeight = 0;
 
     if (m_size == 0) return 0;
-    else if (x > m_x[m_size - 1]) {
+    else if (m_filterRadius <= 0 || m_gaussianFilter == nullptr) {
+        return m_y[closest] * m_outputScale;
+    }
+
+    const double filterRadius = m_filterRadius * m_gaussianFilter->getRadius();
+    if (x > m_x[m_size - 1]) {
         const double w = m_gaussianFilter->evaluate(0);
         sum += w * m_y[m_size - 1];
         totalWeight += w;
@@ -194,11 +226,21 @@ void Function::getDomain(double *x0, double *x1) {
 }
 
 void Function::getRange(double *y0, double *y1) {
-    *y0 = m_yMin;
-    *y1 = m_yMax;
+    if (m_size == 0) {
+        *y0 = 0;
+        *y1 = 0;
+    }
+    else {
+        *y0 = m_yMin;
+        *y1 = m_yMax;
+    }
 }
 
 double Function::triangle(double x) const {
+    if (m_filterRadius <= 0) {
+        return (std::abs(x) <= 1e-12) ? 1.0 : 0.0;
+    }
+
     return (m_filterRadius - std::abs(x)) / m_filterRadius;
 }
 

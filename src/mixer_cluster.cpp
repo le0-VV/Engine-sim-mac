@@ -148,6 +148,24 @@ void MixerCluster::render() {
     grid.h_cells = 6;
     grid.v_cells = 1;
 
+    if (m_simulator == nullptr) {
+        m_volumeGauge->m_bounds = grid.get(m_bounds, 0, 0);
+        m_volumeGauge->m_gauge->m_value = 0.0f;
+        m_convolutionGauge->m_bounds = grid.get(m_bounds, 1, 0);
+        m_convolutionGauge->m_gauge->m_value = 0.0f;
+        m_highFreqFilterGauge->m_bounds = grid.get(m_bounds, 2, 0);
+        m_highFreqFilterGauge->m_gauge->m_value = 0.0f;
+        m_noise0Gauge->m_bounds = grid.get(m_bounds, 3, 0);
+        m_noise0Gauge->m_gauge->m_value = 0.0f;
+        m_noise1Gauge->m_bounds = grid.get(m_bounds, 4, 0);
+        m_noise1Gauge->m_gauge->m_value = 0.0f;
+        m_levelerGauge->m_bounds = grid.get(m_bounds, 5, 0);
+        m_levelerGauge->m_gauge->m_value = 0.0f;
+
+        UiElement::render();
+        return;
+    }
+
     Synthesizer::AudioParameters parameters = m_simulator->synthesizer().getAudioParameters();
 
     m_volumeGauge->m_bounds = grid.get(m_bounds, 0, 0);

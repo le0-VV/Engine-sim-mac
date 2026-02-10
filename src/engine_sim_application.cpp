@@ -145,11 +145,12 @@ void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI
     settings.WindowWidth = 1920;
     settings.WindowHeight = 1080;
 
-    std::fprintf(stderr, "[engine-sim] CreateGameWindow\n");
-    std::fflush(stderr);
-    m_engine.CreateGameWindow(settings);
-    std::fprintf(stderr, "[engine-sim] CreateGameWindow done\n");
-    std::fflush(stderr);
+    const ysError createWindowError = m_engine.CreateGameWindow(settings);
+    if (createWindowError != ysError::None) {
+        std::fprintf(stderr, "[engine-sim] CreateGameWindow failed: %d\n", (int)createWindowError);
+        std::fflush(stderr);
+        return;
+    }
 
     m_engine.GetDevice()->CreateSubRenderTarget(
         &m_mainRenderTarget,
@@ -180,11 +181,6 @@ void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI
 
     m_geometryGenerator.initialize(100000, 200000);
 
-    std::fprintf(stderr, "[engine-sim] initialize() paths: engine=%s assets-root=%s\n",
-        enginePath.c_str(),
-        m_assetPath.c_str());
-    std::fflush(stderr);
-
     initialize();
 }
 
@@ -193,8 +189,6 @@ void EngineSimApplication::initialize() {
     const std::string assetsDir = m_assetPath + "/assets";
     const std::string assetsBase = assetsDir + "/assets";
     if (dbasic::Path(assetsDir).Exists()) {
-        std::fprintf(stderr, "[engine-sim] loading assets from %s\n", assetsBase.c_str());
-        std::fflush(stderr);
         const std::string sceneFile = assetsBase + ".ysce";
         if (dbasic::Path(sceneFile).Exists()) {
             ysError loadErr = m_assetManager.LoadSceneFile(assetsBase.c_str(), true);
@@ -487,28 +481,16 @@ void EngineSimApplication::run() {
 }
 
 void EngineSimApplication::destroy() {
-    std::fprintf(stderr, "[engine-sim] destroy begin\n");
-    std::fflush(stderr);
     m_shaderSet.Destroy();
-    std::fprintf(stderr, "[engine-sim] destroy: shader set\n");
-    std::fflush(stderr);
 
     m_engine.GetDevice()->DestroyGPUBuffer(m_geometryVertexBuffer);
     m_engine.GetDevice()->DestroyGPUBuffer(m_geometryIndexBuffer);
-    std::fprintf(stderr, "[engine-sim] destroy: geometry buffers\n");
-    std::fflush(stderr);
 
     m_assetManager.Destroy();
-    std::fprintf(stderr, "[engine-sim] destroy: asset manager\n");
-    std::fflush(stderr);
     m_engine.Destroy();
-    std::fprintf(stderr, "[engine-sim] destroy: engine\n");
-    std::fflush(stderr);
 
     m_simulator->destroy();
     m_audioBuffer.destroy();
-    std::fprintf(stderr, "[engine-sim] destroy end\n");
-    std::fflush(stderr);
 }
 
 void EngineSimApplication::loadEngine(

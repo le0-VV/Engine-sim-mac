@@ -313,7 +313,7 @@ double RightGaugeCluster::getRedline() const {
 }
 
 double RightGaugeCluster::getSpeed() const {
-    return (m_simulator->getVehicle() != nullptr)
+    return (m_simulator != nullptr && m_simulator->getVehicle() != nullptr)
         ? m_simulator->getVehicle()->getSpeed()
         : 0;
 }
@@ -374,7 +374,7 @@ void RightGaugeCluster::setUnits() {
 
         m_manifoldVacuumGauge->m_unit = "bar";
         m_manifoldVacuumGauge->m_gauge->m_min = 0;
-        m_manifoldVacuumGauge->m_gauge->m_max = 1.1f;
+        m_manifoldVacuumGauge->m_gauge->m_max = 2;
         m_manifoldVacuumGauge->m_gauge->m_minorStep = 1;
         m_manifoldVacuumGauge->m_gauge->m_majorStep = 1;
         m_manifoldVacuumGauge->m_precision = 2;
