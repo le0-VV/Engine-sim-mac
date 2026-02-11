@@ -2,6 +2,7 @@
 - C++ `std::fmax`/`std::fmin`/`std::abs` (`<cmath>`): https://en.cppreference.com/w/cpp/header/cmath
 - C++ `std::clamp` (`<algorithm>`): https://en.cppreference.com/w/cpp/algorithm/clamp
 - CMake documentation: https://cmake.org/documentation/
+- CMake `MACOSX_BUNDLE` property reference: https://cmake.org/cmake/help/latest/prop_tgt/MACOSX_BUNDLE.html
 - OpenGL specifications registry: https://registry.khronos.org/opengl
 - SDL2 documentation wiki: https://wiki.libsdl.org/SDL2
 - GoogleTest User’s Guide: https://google.github.io/googletest/
@@ -39,3 +40,4 @@
 - WWDC25: Create icons with Icon Composer (1024 canvas for iPhone/iPad/Mac, rounded-rectangle shape, layer/export guidance): https://developer.apple.com/videos/play/wwdc2025/361/
 - WWDC25: Say hello to the new look of app icons: https://developer.apple.com/videos/play/wwdc2025/220/
 - App Store Connect help (app icon in Xcode asset catalog): https://developer.apple.com/help/app-store-connect/manage-app-information/add-an-app-icon
+- Launch Services (macOS app launch behavior and APIs): https://developer.apple.com/documentation/coreservices/launch_services
