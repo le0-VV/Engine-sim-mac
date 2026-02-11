@@ -3,7 +3,9 @@
 #include "../include/engine_sim_application.h"
 #include "../include/constants.h"
 
+#include <algorithm>
 #include <climits>
+#include <cmath>
 
 Gauge::Gauge() {
     m_thetaMin = (float)constants::pi;
@@ -50,17 +52,43 @@ void Gauge::destroy() {
 }
 
 void Gauge::update(float dt) {
-    const float value = std::fmaxf((float)m_min, std::fmin((float)m_max, (float)m_value));
-    const float needle_s = std::powf((value - m_min) / std::abs(m_max - m_min), m_gamma);
-    const float F =
-        m_needleKs * (needle_s - m_needlePosition)
-        - m_needleKd * m_needleVelocity;
+    const float minValue = static_cast<float>(m_min);
+    const float maxValue = static_cast<float>(m_max);
+    const float range = maxValue - minValue;
+    const float absRange = std::abs(range);
 
-    m_needleVelocity = std::fminf(
-            m_needleMaxVelocity,
-            std::fmaxf(m_needleVelocity + F * dt, -m_needleMaxVelocity));
-    m_needlePosition += m_needleVelocity * dt;
-    m_needlePosition = std::fmax(0.0f, std::fmin(1.0f, m_needlePosition));
+    if (absRange <= 1e-6f) {
+        m_needleVelocity = 0.0f;
+        m_needlePosition = 0.0f;
+        return;
+    }
+
+    const float lowerBound = std::fmin(minValue, maxValue);
+    const float upperBound = std::fmax(minValue, maxValue);
+    const float value = std::clamp(static_cast<float>(m_value), lowerBound, upperBound);
+
+    float normalized = (value - minValue) / range;
+    normalized = std::clamp(normalized, 0.0f, 1.0f);
+    const float needleTarget = std::pow(normalized, m_gamma);
+
+    const float dtSafe = std::clamp(dt, 0.0f, 0.1f);
+    if (dtSafe <= 0.0f || !std::isfinite(needleTarget)) {
+        m_needleVelocity = 0.0f;
+        m_needlePosition = std::isfinite(needleTarget)
+            ? std::clamp(needleTarget, 0.0f, 1.0f)
+            : 0.0f;
+        return;
+    }
+
+    // Frame-time-stable smoothing with max slew-rate limiting.
+    const float smoothingHz = std::fmax(1.0f, m_needleKs * 0.02f);
+    const float alpha = 1.0f - std::exp(-smoothingHz * dtSafe);
+    const float desired = m_needlePosition + (needleTarget - m_needlePosition) * alpha;
+    const float maxStep = std::fmax(0.0f, m_needleMaxVelocity) * dtSafe;
+    const float step = std::clamp(desired - m_needlePosition, -maxStep, maxStep);
+
+    m_needleVelocity = step / dtSafe;
+    m_needlePosition = std::clamp(m_needlePosition + step, 0.0f, 1.0f);
 }
 
 void Gauge::render() {
@@ -72,13 +100,18 @@ void Gauge::render() {
     const float majorTickWidth = pixelsToUnits(m_majorTickWidth);
     const float minorTickLength = pixelsToUnits(m_minorTickLength);
     const float majorTickLength = pixelsToUnits(m_majorTickLength);
+    const int rangeAbs = std::abs(m_max - m_min);
+    const float rangeAbsF = static_cast<float>(rangeAbs);
 
     GeometryGenerator::GeometryIndices ticks, needle;
 
     GeometryGenerator::Line2dParameters lineParams;
     generator->startShape();
-    for (int i = 0; i <= std::abs(m_max - m_min); i += m_minorStep) {
-        const float s = std::powf((float)i / std::abs(m_max - m_min), m_gamma);
+    const int minorStep = std::max(m_minorStep, 1);
+    for (int i = 0; i <= rangeAbs; i += minorStep) {
+        const float s = (rangeAbs == 0)
+            ? 0.0f
+            : std::pow(static_cast<float>(i) / rangeAbsF, m_gamma);
         const float theta = s * m_thetaMax + (1 - s) * m_thetaMin;
 
         const float tickLength = (i % m_majorStep) == 0
@@ -100,7 +133,7 @@ void Gauge::render() {
         lineParams.y0 = inner.y;
         lineParams.y1 = outer.y;
 
-        if ((i % m_majorStep) == 0 || (i + m_minorStep) <= m_maxMinorTick) {
+        if ((i % m_majorStep) == 0 || (i + minorStep) <= m_maxMinorTick) {
             generator->generateLine2d(lineParams);
         }
 
@@ -138,13 +171,15 @@ void Gauge::render() {
     ringParams.center_y = origin.y;
     ringParams.maxEdgeLength = pixelsToUnits(5);
     for (const Band &band : m_bands) {
+        if (rangeAbs == 0) break;
+
         ringParams.outerRadius = outerRadius + pixelsToUnits(band.radial_offset);
         ringParams.innerRadius = outerRadius + pixelsToUnits(band.radial_offset - band.width);
 
-        const float s0 = std::powf((float)(band.start - m_min) / std::abs(m_max - m_min), m_gamma);
+        const float s0 = std::pow(static_cast<float>(band.start - m_min) / rangeAbsF, m_gamma);
         const float angle0 = s0 * m_thetaMax + (1 - s0) * m_thetaMin;
 
-        const float s1 = std::powf((float)(band.end - m_min) / std::abs(m_max - m_min), m_gamma);
+        const float s1 = std::pow(static_cast<float>(band.end - m_min) / rangeAbsF, m_gamma);
         const float angle1 = s1 * m_thetaMax + (1 - s1) * m_thetaMin;
 
         ringParams.startAngle = std::fminf(angle0, angle1) + band.shorten_end;
