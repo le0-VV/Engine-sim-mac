@@ -4,3 +4,4 @@
 - During this migration, avoid making any git commits; temporary non-runnable intermediate code is acceptable as long as final state builds/runs on macOS Tahoe.
 - User decision (2026-02-10): prioritize completing the port first; defer memory optimization and return to it later.
 - User preference (2026-02-10): use `apply_patch` for `.agents/*` file edits instead of direct shell/heredoc writes.
+- User preference (2026-02-11): unless explicitly requested, do not include OpenGL in the macOS build/runtime path; keep macOS on Metal.
