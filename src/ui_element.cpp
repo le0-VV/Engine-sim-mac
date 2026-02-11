@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <chrono>
 #include <cmath>
+#include <algorithm>
 #include <typeinfo>
 #include <unordered_map>
 
@@ -35,8 +36,19 @@ bool pointsEqual(const Point &a, const Point &b) {
 
 bool isOffscreen(const Bounds &b, int screenWidth, int screenHeight) {
     if (screenWidth <= 0 || screenHeight <= 0) return false;
-    if (b.right() < 0 || b.left() > screenWidth) return true;
-    if (b.bottom() < 0 || b.top() > screenHeight) return true;
+
+    // UI render bounds are centered around (0, 0), not top-left origin.
+    const float halfW = static_cast<float>(screenWidth) * 0.5f;
+    const float halfH = static_cast<float>(screenHeight) * 0.5f;
+
+    const float minX = std::min(b.left(), b.right());
+    const float maxX = std::max(b.left(), b.right());
+    const float minY = std::min(b.bottom(), b.top());
+    const float maxY = std::max(b.bottom(), b.top());
+
+    if (maxX < -halfW || minX > halfW) return true;
+    if (maxY < -halfH || minY > halfH) return true;
+
     return false;
 }
 } /* namespace */
@@ -99,8 +111,10 @@ void UiElement::render() {
         }
 
         const bool visible = child->isVisible();
-        const bool culledOffscreen = isOffscreen(renderBounds, screenW, screenH);
-        const bool shouldDraw = visible && !culledOffscreen;
+        // Do not cull here. Nested widgets frequently use absolute bounds and
+        // aggressive culling can incorrectly drop valid gauge/content draws.
+        const bool culledOffscreen = false;
+        const bool shouldDraw = visible;
         if (!state.initialized
             || state.visible != visible
             || state.culled != culledOffscreen
@@ -112,7 +126,7 @@ void UiElement::render() {
                 child->getDebugName(),
                 visible ? 1 : 0,
                 shouldDraw ? 0 : 1,
-                (!visible) ? "HIDDEN" : (culledOffscreen ? "OFFSCREEN" : "VISIBLE"),
+                (!visible) ? "HIDDEN" : "VISIBLE",
                 child->m_index,
                 0x11,
                 renderBounds.left(),
@@ -124,18 +138,7 @@ void UiElement::render() {
             state.z = child->m_index;
         }
 
-        if (!shouldDraw) {
-            if (visible && culledOffscreen) {
-                DebugTrace::Log(
-                    "ui",
-                    "dead_hidden_widget_draw_attempt id=%p name=%s visible=%d culled=%d",
-                    child,
-                    child->getDebugName(),
-                    visible ? 1 : 0,
-                    culledOffscreen ? 1 : 0);
-            }
-            continue;
-        }
+        if (!shouldDraw) continue;
 
         const auto t0 = std::chrono::steady_clock::now();
         DebugTrace::Log("ui", "widget draw begin id=%p name=%s z=%d", child, child->getDebugName(), child->m_index);

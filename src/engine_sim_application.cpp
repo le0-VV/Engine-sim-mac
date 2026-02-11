@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -1112,7 +1113,15 @@ void EngineSimApplication::loadEngine(
 
     createObjects(engine);
 
-    m_viewParameters.Layer1 = engine->getMaxDepth();
+    const int reportedMaxDepth = engine->getMaxDepth();
+    m_viewParameters.Layer1 = std::max(reportedMaxDepth, 0);
+    if (reportedMaxDepth != m_viewParameters.Layer1) {
+        DebugTrace::Log(
+            "simulator",
+            "warning: engine max depth clamped reported=%d clamped=%d",
+            reportedMaxDepth,
+            m_viewParameters.Layer1);
+    }
     engine->calculateDisplacement();
 
     m_simulator->setSimulationFrequency(engine->getSimulationFrequency());
@@ -1183,6 +1192,20 @@ void EngineSimApplication::drawGenerated(
 
 void EngineSimApplication::configure(const ApplicationSettings &settings) {
     m_applicationSettings = settings;
+
+    startupLog(
+        "theme settings bg=%06X fg=%06X shadow=%06X h1=%06X h2=%06X pink=%06X red=%06X orange=%06X yellow=%06X blue=%06X green=%06X",
+        m_applicationSettings.colorBackground,
+        m_applicationSettings.colorForeground,
+        m_applicationSettings.colorShadow,
+        m_applicationSettings.colorHighlight1,
+        m_applicationSettings.colorHighlight2,
+        m_applicationSettings.colorPink,
+        m_applicationSettings.colorRed,
+        m_applicationSettings.colorOrange,
+        m_applicationSettings.colorYellow,
+        m_applicationSettings.colorBlue,
+        m_applicationSettings.colorGreen);
 
     if (settings.startFullscreen) {
         m_engine.GetGameWindow()->SetWindowStyle(ysWindow::WindowStyle::Fullscreen);
@@ -1786,7 +1809,7 @@ void EngineSimApplication::renderScene() {
     getShaders()->SetObjectTransform(ysMath::LoadIdentity());
 
     m_textRenderer.SetColor(ysColor::linearToSrgb(m_foreground));
-    m_shaders.SetClearColor(ysColor::linearToSrgb(m_shadow));
+    m_shaders.SetClearColor(m_shadow);
 
     const int screenWidth = m_engine.GetGameWindow()->GetGameWidth();
     const int screenHeight = m_engine.GetGameWindow()->GetGameHeight();
