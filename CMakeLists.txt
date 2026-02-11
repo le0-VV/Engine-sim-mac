@@ -440,6 +440,40 @@ else()
     )
 endif()
 
+if (APPLE)
+    set_target_properties(engine-sim-app PROPERTIES
+        OUTPUT_NAME "engine-simulator"
+        MACOSX_BUNDLE_BUNDLE_NAME "Engine Simulator"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "wang.peiyu.EngineSimulator")
+
+    set(ENGINE_SIM_ICON_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/icon_assets")
+    set(ENGINE_SIM_ICON_ICNS "${ENGINE_SIM_ICON_OUTPUT_DIR}/AppIcon.icns")
+    set(ENGINE_SIM_ICON_ASSET_CAR "${ENGINE_SIM_ICON_OUTPUT_DIR}/Assets.car")
+    set(ENGINE_SIM_FALLBACK_ICON_ICNS "${CMAKE_CURRENT_SOURCE_DIR}/art/appicon.icns")
+
+    if (EXISTS "${ENGINE_SIM_ICON_ICNS}" AND EXISTS "${ENGINE_SIM_ICON_ASSET_CAR}")
+        target_sources(engine-sim-app PRIVATE
+            "${ENGINE_SIM_ICON_ICNS}"
+            "${ENGINE_SIM_ICON_ASSET_CAR}")
+        set_source_files_properties(
+            "${ENGINE_SIM_ICON_ICNS}"
+            "${ENGINE_SIM_ICON_ASSET_CAR}"
+            PROPERTIES
+                MACOSX_PACKAGE_LOCATION "Resources")
+        set_target_properties(engine-sim-app PROPERTIES MACOSX_BUNDLE_ICON_FILE "AppIcon.icns")
+    elseif (EXISTS "${ENGINE_SIM_FALLBACK_ICON_ICNS}")
+        target_sources(engine-sim-app PRIVATE "${ENGINE_SIM_FALLBACK_ICON_ICNS}")
+        set_source_files_properties(
+            "${ENGINE_SIM_FALLBACK_ICON_ICNS}"
+            PROPERTIES
+                MACOSX_PACKAGE_LOCATION "Resources")
+        set_target_properties(engine-sim-app PROPERTIES MACOSX_BUNDLE_ICON_FILE "appicon.icns")
+        message(WARNING "Using fallback appicon.icns. Run ./tools/build.sh to regenerate AppIcon.icns + Assets.car.")
+    else()
+        message(WARNING "No macOS icon artifacts found. Run ./tools/build.sh to generate icon resources.")
+    endif()
+endif()
+
 target_link_libraries(engine-sim-app
     engine-sim
 )

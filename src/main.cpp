@@ -3,11 +3,17 @@
 
 #include <exception>
 #include <csignal>
+#include <cstdlib>
 
 namespace {
 void EngineSimSignalHandler(int signalCode) {
     DebugTrace::RequestDump("signal");
     DebugTrace::Log("main", "signal handler triggered code=%d", signalCode);
+    DebugTrace::Shutdown();
+
+    // Re-raise with default handling so macOS still generates a normal crash report.
+    std::signal(signalCode, SIG_DFL);
+    std::raise(signalCode);
     std::_Exit(128 + signalCode);
 }
 }

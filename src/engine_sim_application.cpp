@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <sstream>
 #include <cstdio>
+#include <cstdarg>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -28,6 +29,7 @@
 
 #if defined(__APPLE__)
 #include <mach/mach.h>
+#include <os/log.h>
 #endif
 
 #if ATG_ENGINE_SIM_DISCORD_ENABLED && defined(_WIN32)
@@ -83,6 +85,51 @@ int countWidgetsRecursive(const UiElement *node) {
     }
 
     return count;
+}
+
+const char *deviceApiName(ysContextObject::DeviceAPI api) {
+    switch (api) {
+    case ysContextObject::DeviceAPI::DirectX10: return "DirectX10";
+    case ysContextObject::DeviceAPI::DirectX11: return "DirectX11";
+    case ysContextObject::DeviceAPI::OpenGL4_0: return "OpenGL4_0";
+    case ysContextObject::DeviceAPI::Vulkan: return "Vulkan";
+    case ysContextObject::DeviceAPI::Metal: return "Metal";
+    default: return "Unknown";
+    }
+}
+
+const char *ysErrorName(ysError error) {
+    switch (error) {
+    case ysError::None: return "None";
+    case ysError::InvalidParameter: return "InvalidParameter";
+    case ysError::IncompatiblePlatforms: return "IncompatiblePlatforms";
+    case ysError::NoPlatform: return "NoPlatform";
+    case ysError::InvalidOperation: return "InvalidOperation";
+    case ysError::CouldNotCreateGraphicsDevice: return "CouldNotCreateGraphicsDevice";
+    case ysError::CouldNotObtainDevice: return "CouldNotObtainDevice";
+    case ysError::ApiError: return "ApiError";
+    case ysError::CouldNotCreateContext: return "CouldNotCreateContext";
+    case ysError::NoDevice: return "NoDevice";
+    case ysError::NoRenderTarget: return "NoRenderTarget";
+    case ysError::NoContext: return "NoContext";
+    case ysError::NoWindowSystem: return "NoWindowSystem";
+    default: return "Unknown";
+    }
+}
+
+void startupLog(const char *format, ...) {
+    char buffer[1024];
+    va_list args;
+    va_start(args, format);
+    std::vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    std::fprintf(stderr, "[engine-sim] %s\n", buffer);
+    std::fflush(stderr);
+
+#if defined(__APPLE__)
+    os_log_with_type(OS_LOG_DEFAULT, OS_LOG_TYPE_DEFAULT, "engine-sim %{public}s", buffer);
+#endif
 }
 } /* namespace */
 
@@ -169,30 +216,67 @@ void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI
         confFile.close();
     }
     else {
-        dbasic::Path search = modulePath;
-        bool foundRoot = false;
-        for (int i = 0; i < 8; ++i) {
-            const dbasic::Path assetsDir = search.Append("assets");
-            const dbasic::Path engineDir = search.Append("dependencies/submodules/delta-studio/engines/basic");
-            if (assetsDir.Exists() && engineDir.Exists()) {
-                m_assetPath = search.ToString();
-                enginePath = engineDir.ToString();
-                foundRoot = true;
-                break;
+        const auto pathExists = [](const std::filesystem::path &p) {
+            std::error_code ec;
+            return std::filesystem::exists(p, ec) && !ec;
+        };
+
+        const std::filesystem::path moduleFs(modulePath.ToString());
+        const std::filesystem::path bundledResources = moduleFs.parent_path() / "Resources";
+        const std::filesystem::path bundledAssets = bundledResources / "assets";
+        const std::filesystem::path bundledEngine = bundledResources / "delta-basic";
+        const bool hasBundledAssets =
+            pathExists(bundledAssets)
+            && (pathExists(bundledAssets / "assets.ysce") || pathExists(bundledAssets / "assets.interchange"));
+        const bool hasBundledEngine =
+            pathExists(bundledEngine / "fonts") && pathExists(bundledEngine / "shaders");
+
+        if (hasBundledAssets && hasBundledEngine) {
+            m_assetPath = bundledResources.string();
+            enginePath = bundledEngine.string();
+            DebugTrace::Log(
+                "app",
+                "using bundled resources asset_path=%s engine_path=%s",
+                m_assetPath.c_str(),
+                enginePath.c_str());
+        }
+        else {
+            dbasic::Path search = modulePath;
+            bool foundRoot = false;
+            for (int i = 0; i < 8; ++i) {
+                const dbasic::Path assetsDir = search.Append("assets");
+                const dbasic::Path engineDir = search.Append("dependencies/submodules/delta-studio/engines/basic");
+                if (assetsDir.Exists() && engineDir.Exists()) {
+                    m_assetPath = search.ToString();
+                    enginePath = engineDir.ToString();
+                    foundRoot = true;
+                    break;
+                }
+
+                dbasic::Path parent;
+                search.GetParentPath(&parent);
+                search = parent;
             }
 
-            dbasic::Path parent;
-            search.GetParentPath(&parent);
-            search = parent;
-        }
-
-        if (!foundRoot) {
-            m_assetPath = modulePath.ToString();
-            enginePath = modulePath.Append("../dependencies/submodules/delta-studio/engines/basic").ToString();
+            if (!foundRoot) {
+                m_assetPath = modulePath.ToString();
+                enginePath = modulePath.Append("../dependencies/submodules/delta-studio/engines/basic").ToString();
+            }
         }
     }
 
     m_engine.GetConsole()->SetDefaultFontDirectory(enginePath + "/fonts/");
+    DebugTrace::Log(
+        "app",
+        "initialize() resolved paths engine=%s asset_root=%s",
+        enginePath.c_str(),
+        m_assetPath.c_str());
+    std::fprintf(
+        stderr,
+        "[engine-sim] initialize() paths: engine=%s assets-root=%s\n",
+        enginePath.c_str(),
+        m_assetPath.c_str());
+    std::fflush(stderr);
 
     const std::string shaderPath = enginePath + "/shaders/";
     const std::string winTitle = "Engine Sim | AngeTheGreat | v" + s_buildVersion;
@@ -208,10 +292,26 @@ void EngineSimApplication::initialize(void *instance, ysContextObject::DeviceAPI
     settings.WindowWidth = 1920;
     settings.WindowHeight = 1080;
 
-    const ysError createWindowError = m_engine.CreateGameWindow(settings);
+    auto createWindowWithApi = [&](ysContextObject::DeviceAPI selectedApi) {
+        settings.API = selectedApi;
+        startupLog("CreateGameWindow attempt api=%s", deviceApiName(selectedApi));
+        const ysError err = m_engine.CreateGameWindow(settings);
+        if (err == ysError::None) {
+            startupLog("CreateGameWindow succeeded api=%s", deviceApiName(selectedApi));
+        }
+        else {
+            startupLog(
+                "CreateGameWindow failed api=%s code=%d(%s)",
+                deviceApiName(selectedApi),
+                static_cast<int>(err),
+                ysErrorName(err));
+        }
+
+        return err;
+    };
+
+    const ysError createWindowError = createWindowWithApi(api);
     if (createWindowError != ysError::None) {
-        std::fprintf(stderr, "[engine-sim] CreateGameWindow failed: %d\n", (int)createWindowError);
-        std::fflush(stderr);
         DebugTrace::Log("app", "CreateGameWindow failed: code=%d", static_cast<int>(createWindowError));
         return;
     }
@@ -369,7 +469,7 @@ void EngineSimApplication::initialize() {
         m_engine.GetAudioDevice()->CreateBuffer(&params, 44100);
 
     m_audioSource = m_engine.GetAudioDevice()->CreateSource(m_outputAudioBuffer);
-    m_audioSource->SetMode((m_simulator->getEngine() != nullptr)
+    m_audioSource->SetMode((m_simulator != nullptr && m_simulator->getEngine() != nullptr)
         ? ysAudioSource::Mode::Loop
         : ysAudioSource::Mode::Stop);
     m_audioSource->SetPan(0.0f);
@@ -565,6 +665,11 @@ float EngineSimApplication::unitsToPixels(float units) const {
 
 void EngineSimApplication::run() {
     DebugTrace::Log("app", "run() begin");
+    if (m_simulator == nullptr) {
+        startupLog("run aborted: simulator is null after initialization");
+        return;
+    }
+
     auto nextHeartbeat = std::chrono::steady_clock::now() + std::chrono::seconds(1);
     int framesSinceHeartbeat = 0;
     unsigned long long frameIndex = 0;
@@ -995,14 +1100,15 @@ void EngineSimApplication::loadEngine(
     m_vehicle = vehicle;
     m_transmission = transmission;
 
-    m_simulator = engine->createSimulator(vehicle, transmission);
-
     if (engine == nullptr || vehicle == nullptr || transmission == nullptr) {
+        m_simulator = nullptr;
         m_iceEngine = nullptr;
         m_viewParameters.Layer1 = 0;
 
         return;
     }
+
+    m_simulator = engine->createSimulator(vehicle, transmission);
 
     createObjects(engine);
 
@@ -1163,6 +1269,9 @@ void EngineSimApplication::loadScript() {
     DebugTrace::Log("script", "script_vm_call entry=compiler.initialize");
     compiler.initialize();
     const std::string scriptPath = m_assetPath + "/assets/main.mr";
+    const std::string assetScriptLibraryPath = (std::filesystem::path(m_assetPath) / "es").string();
+    compiler.addSearchPath(assetScriptLibraryPath.c_str());
+    DebugTrace::Log("script", "added script search path=%s", assetScriptLibraryPath.c_str());
     DebugTrace::Log("script", "active script path=%s", scriptPath.c_str());
     DebugTrace::Log("script", "script_vm_call entry=compiler.compile");
     const bool compiled = compiler.compile(scriptPath.c_str());
