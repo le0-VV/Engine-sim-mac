@@ -6,3 +6,4 @@
 - User preference (2026-02-10): use `apply_patch` for `.agents/*` file edits instead of direct shell/heredoc writes.
 - User preference (2026-02-11): unless explicitly requested, do not include OpenGL in the macOS build/runtime path; keep macOS on Metal.
 - User expectation (2026-02-11): logs should include a full software state snapshot every second, and any error/fatal error must be logged immediately.
+- User preference (2026-02-11): prefer the existing baseline logging method over ad-hoc visualization-targeted logging instrumentation.
